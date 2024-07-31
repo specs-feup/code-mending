@@ -1,0 +1,50 @@
+plugins {
+    id "java"
+    id "distribution"
+}
+
+group project.findProperty("group")
+version project.findProperty("version")
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform("org.junit:junit-bom:5.10.0")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "src"
+        }
+
+        resources {
+            srcDir "resources"
+        }
+    }
+
+    test {
+        java {
+            srcDir "test"
+        }
+
+        resources {
+            srcDir "resources"
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes "Main-Class": project.findProperty("mainClass")
+    }
+}
