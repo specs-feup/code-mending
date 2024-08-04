@@ -1,10 +1,9 @@
+import java.text.SimpleDateFormat
+
 plugins {
     id "java"
     id "distribution"
 }
-
-group project.findProperty("group")
-version project.findProperty("version")
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -50,7 +49,20 @@ sourceSets {
 }
 
 jar {
+    archiveFileName.set("${jarName}.jar")
     manifest {
-        attributes "Main-Class": project.findProperty("mainClass")
+        attributes (
+                "Main-Class": mainClass,
+                "Created-By": "Gradle ${gradle.gradleVersion}, JDK ${JavaVersion.current().toString()} ${System.getProperty('java.vendor')}",
+                "Implementation-Title": project.name,
+                "X-Implementation-Description": project.description,
+                "Implementation-Version": project.version,
+                "Implementation-Vendor": vendor,
+                "X-Group": project.group,
+                "X-Release-Date": new SimpleDateFormat("yyyy-MM-dd").format(new Date())
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }

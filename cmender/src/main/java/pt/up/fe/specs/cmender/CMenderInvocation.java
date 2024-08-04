@@ -9,7 +9,7 @@ import java.util.List;
 @Getter
 public class CMenderInvocation {
 
-    private String[] command;
+    private List<String> command;
 
     @Builder.Default
     private boolean verbose = false;
