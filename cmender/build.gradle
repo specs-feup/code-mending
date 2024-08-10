@@ -72,3 +72,18 @@ shadowJar {
     archiveClassifier.set('')
     archiveVersion.set('')
 }
+
+javadoc {
+    // Set the title of the generated Javadoc
+    options {
+        title = "CMender Documentation"
+        options.addStringOption('Xdoclint:all', '-quiet')
+        options.addStringOption('charset', 'UTF-8')
+    }
+
+    // Specify source directories if you have multiple source sets
+    source = sourceSets.main.allJava
+
+    // Configure the Javadoc task to include specific packages or classes
+    exclude '**/internal/**' // Exclude internal packages
+}
