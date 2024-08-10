@@ -3,11 +3,12 @@ import java.text.SimpleDateFormat
 plugins {
     id "java"
     id "distribution"
+    id 'com.github.johnrengelman.shadow' version '8.1.0' // Replace with the latest version
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
 }
 
@@ -17,6 +18,7 @@ repositories {
 
 dependencies {
     implementation "commons-cli:commons-cli:1.8.0"
+    implementation "org.apache.logging.log4j:log4j-core:2.23.1"
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"
 
@@ -53,6 +55,7 @@ jar {
     manifest {
         attributes (
                 "Main-Class": mainClass,
+                "Multi-Release": true,
                 "Created-By": "Gradle ${gradle.gradleVersion}, JDK ${JavaVersion.current().toString()} ${System.getProperty('java.vendor')}",
                 "Implementation-Title": project.name,
                 "X-Implementation-Description": project.description,
@@ -62,7 +65,10 @@ jar {
                 "X-Release-Date": new SimpleDateFormat("yyyy-MM-dd").format(new Date())
         )
     }
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+}
+
+shadowJar {
+    archiveBaseName.set("${jarName}")
+    archiveClassifier.set('')
+    archiveVersion.set('')
 }
