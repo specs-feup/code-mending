@@ -15,5 +15,8 @@ public class CMenderInvocation {
     private boolean verbose = false;
 
     @Builder.Default
+    private String diagExporterPath = null;
+
+    @Builder.Default
     private List<String> files = new ArrayList<>();
 }

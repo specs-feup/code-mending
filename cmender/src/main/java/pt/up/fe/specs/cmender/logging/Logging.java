@@ -23,7 +23,7 @@ public class Logging {
 
     private static final Level DEFAULT_STATUS_LEVEL = Level.WARN;
 
-    public static final Logger FILE_LOGGER = LogManager.getLogger(FILE_LOGGER_NAME);
+    public static final Logger FILE_LOGGER;
 
     static {
         // TODO check here if user provided folder exists and has permissions
@@ -59,6 +59,8 @@ public class Logging {
                 .add(fileLoggerComponentBuilder);
 
         Configurator.initialize(configBuilder.build());
+
+        FILE_LOGGER = LogManager.getLogger(FILE_LOGGER_NAME);
     }
 
     public static Level getCMenderLogLevel() {

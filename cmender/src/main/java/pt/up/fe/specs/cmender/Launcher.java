@@ -1,6 +1,14 @@
 package pt.up.fe.specs.cmender;
 
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
+import pt.up.fe.specs.cmender.diag.DiagExporter;
 
 import java.util.List;
 
@@ -23,6 +31,13 @@ public class Launcher {
         options.addOption(Option.builder()
                 .longOpt("version")
                 .desc("Print version information")
+                .build());
+
+        options.addOption(Option.builder("dex")
+                .longOpt("diag-exporter")
+                .desc("Path for diag-exporter executable")
+                .required()
+                .hasArg()
                 .build());
 
         var helpFormatter = new HelpFormatter();
@@ -57,10 +72,11 @@ public class Launcher {
             invocationBuilder = invocationBuilder
                     .command(List.of(args))
                     .verbose(cmd.hasOption("v"))
+                    .diagExporterPath(cmd.getOptionValue("dex"))
                     .files(List.of(files));
 
         } catch (ParseException e) {
-            System.err.println("error: command line parsing failed: " + e.getMessage());
+            System.err.println("error: command line parsing failed. " + e.getMessage());
             helpFormatter.printHelp(USAGE_STRING, options);
             System.exit(1);
         }
@@ -80,5 +96,7 @@ public class Launcher {
         var invocation = parseCliArgs(args, properties);
 
         System.out.println(invocation);
+
+        var diagExporter = new DiagExporter(invocation.getDiagExporterPath());
     }
 }
