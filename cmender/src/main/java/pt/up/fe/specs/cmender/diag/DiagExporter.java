@@ -1,5 +1,6 @@
 package pt.up.fe.specs.cmender.diag;
 
+import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.logging.Logging;
 
 import java.io.IOException;
@@ -31,12 +32,12 @@ public class DiagExporter {
             exitCode = process.waitFor();
 
             if (exitCode != 0) {
-                System.err.println("error: diag-exporter process exited with code " + exitCode);
+                CliReporting.error("diag-exporter process exited with code %d", exitCode);
                 Logging.FILE_LOGGER.error("diag-exporter process exited with code {}", exitCode);
             }
 
         } catch (IOException | InterruptedException e) {
-            System.err.println("error: diag-exporter process exception: " + e.getMessage());
+            CliReporting.error("diag-exporter process exception: %s", e.getMessage());
             Logging.FILE_LOGGER.error("diag-exporter process exception: {}", e.getMessage(), e);
         }
 

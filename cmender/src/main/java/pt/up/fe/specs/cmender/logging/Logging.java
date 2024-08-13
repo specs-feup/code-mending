@@ -7,6 +7,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
 import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
 import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
+import pt.up.fe.specs.cmender.cli.CliReporting;
 
 import java.nio.file.Paths;
 
@@ -31,7 +32,7 @@ public class Logging {
         var logLevel = getCMenderLogLevel();
 
         if (logLevel == null) {
-            System.err.println("error: invalid log level: " + System.getProperty("log.level"));
+            CliReporting.error("invalid log level: %s", System.getProperty("log.level"));
             System.exit(1);
         }
 

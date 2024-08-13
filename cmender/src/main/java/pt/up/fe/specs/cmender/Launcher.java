@@ -8,6 +8,9 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import pt.up.fe.specs.cmender.cli.CliReporting;
+import pt.up.fe.specs.cmender.diag.DiagExporter;
+import pt.up.fe.specs.cmender.logging.Logging;
 import pt.up.fe.specs.cmender.diag.DiagExporter;
 
 import java.util.List;
@@ -49,22 +52,22 @@ public class Launcher {
             CommandLine cmd = parser.parse(options, args);
 
             if (cmd.hasOption("h")) {
-                System.out.printf("overview: %s - %s by %s\n", properties.name(), properties.description(), properties.vendor());
+                CliReporting.info("overview: %s - %s by %s\n", properties.name(), properties.description(), properties.vendor());
                 helpFormatter.printHelp(USAGE_STRING, options);
                 System.exit(0);
             }
 
             if (cmd.hasOption("version")) {
-                System.out.println(properties.name() + " by " + properties.vendor());
-                System.out.printf("Version: %s\n", properties.version());
-                System.out.printf("Release Date: %s\n", properties.date());
+                CliReporting.info(properties.name() + " by " + properties.vendor());
+                CliReporting.info("Version: %s", properties.version());
+                CliReporting.info("Release Date: %s", properties.date());
                 System.exit(0);
             }
 
             var files = cmd.getArgs();
 
             if (files.length == 0) {
-                System.err.println("error: no input files specified");
+                CliReporting.error("no input files specified");
                 helpFormatter.printHelp(USAGE_STRING, options);
                 System.exit(1);
             }
@@ -91,11 +94,11 @@ public class Launcher {
             System.exit(1);
         }
 
-        System.out.println(properties);
+        Logging.FILE_LOGGER.debug(properties);
 
         var invocation = parseCliArgs(args, properties);
 
-        System.out.println(invocation);
+        Logging.FILE_LOGGER.debug(invocation);
 
         var diagExporter = new DiagExporter(invocation.getDiagExporterPath());
     }

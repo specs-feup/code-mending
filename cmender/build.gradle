@@ -3,7 +3,7 @@ import java.text.SimpleDateFormat
 plugins {
     id "java"
     id "distribution"
-    id 'com.github.johnrengelman.shadow' version '8.1.0' // Replace with the latest version
+    id "com.github.johnrengelman.shadow" version "8.1.0" // TODO Replace with the latest version
 }
 
 java {
@@ -19,6 +19,8 @@ repositories {
 dependencies {
     implementation "commons-cli:commons-cli:1.8.0"
     implementation "org.apache.logging.log4j:log4j-core:2.23.1"
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.17.0"
+    implementation "org.fusesource.jansi:jansi:2.4.0"
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"
 
