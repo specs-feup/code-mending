@@ -7,8 +7,24 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
 public class CliArgsParserException extends Exception {
+    public CliArgsParserException(String message) {
+        super(message);
+    }
+
     public CliArgsParserException(ParseException e) {
         super(adaptMessage(e));
+    }
+
+    public static CliArgsParserException ofMissingOption(String option) {
+        return new CliArgsParserException(String.format("missing option: '%s'", option));
+    }
+
+    public static CliArgsParserException ofOptionMissingArgument(String option) {
+        return new CliArgsParserException(String.format("missing argument for option: '%s'", option));
+    }
+
+    public static CliArgsParserException ofMissingInputFiles() {
+        return new CliArgsParserException("no input files specified");
     }
 
     private static String adaptMessage(ParseException e) {
@@ -22,7 +38,7 @@ public class CliArgsParserException extends Exception {
         }
 
         if (e instanceof MissingArgumentException missingArgumentException) {
-            return String.format("missing argument for option: %s", missingArgumentException.getOption().getKey());
+            return String.format("missing argument for option: '%s'", missingArgumentException.getOption().getKey());
         }
 
         if (e instanceof MissingOptionException missingOptionException) {

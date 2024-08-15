@@ -13,7 +13,7 @@ import java.util.List;
 public class CMenderInvocation {
 
     @Builder.Default
-    private List<String> command = new ArrayList<>();;
+    private List<String> invocation = new ArrayList<>();;
 
     @Builder.Default
     private boolean version = false;

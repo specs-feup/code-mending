@@ -12,6 +12,10 @@ java {
     withSourcesJar()
 }
 
+test {
+    useJUnitPlatform()
+}
+
 repositories {
     mavenCentral()
 }
@@ -24,32 +28,13 @@ dependencies {
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"
 
-    testCompileOnly 'org.projectlombok:lombok:1.18.34'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
+    testCompileOnly "org.projectlombok:lombok:1.18.34"
+    testAnnotationProcessor "org.projectlombok:lombok:1.18.34"
     testImplementation platform("org.junit:junit-bom:5.10.0")
     testImplementation "org.junit.jupiter:junit-jupiter"
-}
-
-sourceSets {
-    main {
-        java {
-            srcDir "src"
-        }
-
-        resources {
-            srcDir "resources"
-        }
-    }
-
-    test {
-        java {
-            srcDir "test"
-        }
-
-        resources {
-            srcDir "resources"
-        }
-    }
+    testImplementation "org.junit.jupiter:junit-jupiter-api:5.10.0"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:5.10.0"
+    testImplementation "org.hamcrest:java-hamcrest:2.0.0.0"
 }
 
 jar {
@@ -84,7 +69,7 @@ javadoc {
     }
 
     // Specify source directories if you have multiple source sets
-    source = sourceSets.main.allJava
+    // source = sourceSets.main.allJava
 
     // Configure the Javadoc task to include specific packages or classes
     exclude '**/internal/**' // Exclude internal packages
