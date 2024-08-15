@@ -1,6 +1,9 @@
 package pt.up.fe.specs.cmender;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.ToString;
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +12,14 @@ import java.util.List;
 @Getter
 public class CMenderInvocation {
 
-    private List<String> command;
+    @Builder.Default
+    private List<String> command = new ArrayList<>();;
+
+    @Builder.Default
+    private boolean version = false;
+
+    @Builder.Default
+    private boolean help = false;
 
     @Builder.Default
     private boolean verbose = false;
