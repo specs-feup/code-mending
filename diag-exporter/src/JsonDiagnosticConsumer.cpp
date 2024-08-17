@@ -286,11 +286,11 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                 auto qualifiers = qualType.getQualifiers();
 
                 messageInfo["args"].push_back({
-                    {"kind", "qual_type"},
+                    {"kind", "qualtype"},
                     {"type", {
-                        //{"name", qualType},
-                        //{"canonical", qualType.getCanonicalType()},
-                        //{"desugared", qualType.getDesugaredType(compilerInstance.getASTContext())}
+                        {"name", qualType.getAsString()},
+                        {"canonical", qualType.getCanonicalType().getAsString()},
+                        {"desugared", qualType.getDesugaredType(compilerInstance.getASTContext()).getAsString()}
                     }},
                     {"qual", {
                         {"spelling", qualifiers.getAsString()},
@@ -306,7 +306,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                 const auto declName = clang::DeclarationName::getFromOpaqueInteger(info.getRawArg(i));
 
                 messageInfo["args"].push_back({
-                    {"kind", "decl_name"},
+                    {"kind", "declaration_name"},
                     {"name", declName.getAsString()}
                 });
                 // llvm::errs() << "      declName: " << clang::DeclarationName::getFromOpaqueInteger(info.getRawArg(i)) << "\n";
@@ -320,8 +320,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                     {"name", namedDecl->getName()},
                     {"nameAsString", namedDecl->getNameAsString()},
                     {"qualName", namedDecl->getQualifiedNameAsString()},
-                    {"declName", namedDecl->getQualifiedNameAsString()}
-
+                    //{"declName", namedDecl->getDeclName()}
                 });
                 // llvm::errs() << "      declName: " << namedDecl->getDeclName() << "\n";
                 // llvm::errs() << "      declKindName: " << namedDecl->getDeclKindName() << "\n";
@@ -347,7 +346,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_qualtype_pair: {
                 // TODO
                 messageInfo["args"].push_back({
-                    {"kind", "qual_type_pair"},
+                    {"kind", "qualtype_pair"},
                 });
                 break;
             }
@@ -379,7 +378,7 @@ ordered_json JsonDiagnosticConsumer::getPresumedLocInfo(const clang::SourceLocat
     return ordered_json::object({
         {"line", presumedLocation.getLine()},
         {"column", presumedLocation.getColumn()},
-        {"filename", presumedLocation.getFilename()},
+        {"file", presumedLocation.getFilename()},
         {"path", ss.str()}
     });
 }
