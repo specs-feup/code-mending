@@ -22,9 +22,8 @@ static llvm::cl::opt<std::string> outputFilepath(
 
 int main(int argc, const char **argv) {
     llvm::cl::SetVersionPrinter(
-    [](llvm::raw_ostream &OS) {
-        OS << TOOL_NAME << " version " << TOOL_VERSION << "    " << TOOL_RELEASE_DATE << "\n";
-    });
+        [](llvm::raw_ostream &OS) {
+            OS << TOOL_NAME << " version " << TOOL_VERSION << "    " << TOOL_RELEASE_DATE << "\n"; });
 
     auto optionsParser = clang::tooling::CommonOptionsParser::create(argc, argv, tuDiagExporterCategory);
 

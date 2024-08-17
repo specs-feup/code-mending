@@ -1,6 +1,7 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 
 #include "DiagnosticExporterAction.h"
 
@@ -25,10 +26,9 @@ static std::vector<std::string> split(const std::string &path, char delimiter) {
 }
 
 static std::string reducePath(const std::string &path) {
-    constexpr int threshold = 4; // Adjust this to change how many parts to keep
     const std::vector<std::string> parts = split(path, '/');
 
-    if (parts.size() <= threshold) {
+    if (constexpr int threshold = 4; parts.size() <= threshold) {
         return path;
     }
 
@@ -68,18 +68,35 @@ void DiagnosticExporterAction::EndSourceFileAction() {
         diagsInfos.push_back(diagConsumer->getDiagsInfo());
 
         if (filesDone == totalFiles) {
-            std::ofstream file(outputFilepath);
-
-            if (!file.is_open()) {
-                llvm::errs() << "Could not open the output file for writing!\n";
-                std::exit(1);
-            }
-
             llvm::outs() << "Finished processing all files. Saving results..\n";
 
-            file << diagsInfos.dump(2);
+            std::filesystem::path filePathObj(outputFilepath);
 
-            file.close();
+            if (std::filesystem::path directory = filePathObj.parent_path(); !exists(directory)) {
+                try {
+                    create_directories(directory);
+                    llvm::outs() << "Directory created: " << directory << "\n";
+                } catch (const std::filesystem::filesystem_error& e) {
+                    llvm::errs() << "Error creating directory: " << e.what() << "\n";
+                    std::exit(1);
+                }
+            }
+
+            if (!std::filesystem::exists(outputFilepath)) {
+                std::ofstream file(outputFilepath);
+
+                if (!file.is_open()) {
+                    llvm::errs() << "Could not open the output file for writing!\n";
+                    std::exit(1);
+                }
+
+                file << diagsInfos.dump(2);
+
+                file.close();
+            } else {
+                llvm::errs() << "File already exists: " << outputFilepath << "\n";
+                std::exit(1);
+            }
         }
     }
 }
