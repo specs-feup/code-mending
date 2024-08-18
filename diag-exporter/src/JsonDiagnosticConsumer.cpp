@@ -274,10 +274,10 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                 messageInfo["args"].push_back({
                     {"kind", "qual"},
                     {"spelling", qualifiers.getAsString()},
-                    {"const", qualifiers.hasConst()},
-                    {"volatile", qualifiers.hasVolatile()},
-                    {"restrict", qualifiers.hasRestrict()},
-                    {"unaligned", qualifiers.hasUnaligned()}
+                    {"hasConst", qualifiers.hasConst()},
+                    {"hasVolatile", qualifiers.hasVolatile()},
+                    {"hasRestrict", qualifiers.hasRestrict()},
+                    {"hasUnaligned", qualifiers.hasUnaligned()}
                 });
                 break;
             }
@@ -294,10 +294,10 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                     }},
                     {"qual", {
                         {"spelling", qualifiers.getAsString()},
-                        {"const", qualifiers.hasConst()},
-                        {"volatile", qualifiers.hasVolatile()},
-                        {"restrict", qualifiers.hasRestrict()},
-                        {"unaligned", qualifiers.hasUnaligned()}
+                        {"hasConst", qualifiers.hasConst()},
+                        {"hasVolatile", qualifiers.hasVolatile()},
+                        {"hasRestrict", qualifiers.hasRestrict()},
+                        {"hasUnaligned", qualifiers.hasUnaligned()}
                     }}
                 });
                 break;
