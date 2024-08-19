@@ -1,4 +1,4 @@
-#define <stdio.h>
-#define "missing.h"
+#include <stdio.h>
+#include "missing.h"
 
 int main() { }
