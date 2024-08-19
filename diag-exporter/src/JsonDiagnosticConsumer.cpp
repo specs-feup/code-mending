@@ -290,7 +290,8 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                     {"type", {
                         {"name", qualType.getAsString()},
                         {"canonical", qualType.getCanonicalType().getAsString()},
-                        {"desugared", qualType.getDesugaredType(compilerInstance.getASTContext()).getAsString()}
+                        {"desugared", qualType.getDesugaredType(compilerInstance.getASTContext()).getAsString()},
+                        {"baseTypeName", qualType.getBaseTypeIdentifier()? qualType.getBaseTypeIdentifier()->getName() : ""}
                     }},
                     {"qual", {
                         {"spelling", qualifiers.getAsString()},
@@ -317,8 +318,8 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
 
                 messageInfo["args"].push_back({
                     {"kind", "named_decl"},
-                    {"name", namedDecl->getName()},
-                    {"nameAsString", namedDecl->getNameAsString()},
+                    {"idName", namedDecl->getName()},
+                    {"readableName", namedDecl->getNameAsString()},
                     {"qualName", namedDecl->getQualifiedNameAsString()},
                     //{"declName", namedDecl->getDeclName()}
                 });
