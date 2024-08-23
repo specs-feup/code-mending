@@ -94,7 +94,7 @@ void DiagnosticExporterAction::EndSourceFileAction() {
 
                 file.close();
             } else {
-                llvm::errs() << "File already exists: " << outputFilepath << "\n";
+                llvm::errs() << "Could not save results to output file: file already exists: " << outputFilepath << "\n";
                 std::exit(1);
             }
         }
