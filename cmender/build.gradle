@@ -16,6 +16,8 @@ test {
     useJUnitPlatform()
 }
 
+test.jvmArgs System.getProperty("test.jvmArgs")? System.getProperty("test.jvmArgs").split(" ") : ""
+
 repositories {
     mavenCentral()
 }
