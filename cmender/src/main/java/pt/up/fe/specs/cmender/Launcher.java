@@ -3,7 +3,6 @@ package pt.up.fe.specs.cmender;
 import pt.up.fe.specs.cmender.cli.CliArgsParser;
 import pt.up.fe.specs.cmender.cli.CliArgsParserException;
 import pt.up.fe.specs.cmender.cli.CliReporting;
-import pt.up.fe.specs.cmender.diag.DiagExporter;
 import pt.up.fe.specs.cmender.logging.Logging;
 
 public class Launcher {
@@ -38,7 +37,5 @@ public class Launcher {
             Logging.FILE_LOGGER.error(e);
             System.exit(1);
         }
-
-        var diagExporter = new DiagExporter(invocation.getDiagExporterPath());
     }
 }

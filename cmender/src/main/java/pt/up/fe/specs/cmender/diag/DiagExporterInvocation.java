@@ -1,16 +1,18 @@
 package pt.up.fe.specs.cmender.diag;
 
 import lombok.*;
+import lombok.experimental.Accessors;
+
 import pt.up.fe.specs.cmender.lang.Lang;
 import pt.up.fe.specs.cmender.lang.Standard;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
 
 @Builder
 @ToString
 @Getter
+@Accessors(fluent = true)
 public class DiagExporterInvocation {
     @Builder.Default
     private List<String> files = new ArrayList<>();
@@ -27,8 +29,23 @@ public class DiagExporterInvocation {
     @Builder.Default
     private int errorLimit = 0;
 
+    @Builder.Default
+    private boolean isVersion = false;
+
+    @Builder.Default
+    private boolean isHelp = false;
+
     public List<String> asInvocationArgs() {
         //return Arrays.stream(asInvocationArgsString().split(" ")).toList();
+
+        if (isVersion) {
+            return new ArrayList<>(List.of("--version"));
+        }
+
+        if (isHelp) {
+            return new ArrayList<>(List.of("--help"));
+        }
+        
         var args = new ArrayList<>(files);
 
         args.add("-o");
@@ -43,6 +60,14 @@ public class DiagExporterInvocation {
     }
 
     public String asInvocationArgsString() {
+        if (isVersion) {
+            return "--version";
+        }
+
+        if (isHelp) {
+            return "--help";
+        }
+
         var stringBuilder = new StringBuilder();
 
         for (String file : files) {
