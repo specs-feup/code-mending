@@ -1,18 +1,28 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record QualtypeArg(
+        Qual qual,
+        Type type
 
-@Getter
-@Accessors(fluent = true)
-public class QualtypeArg extends DiagnosticArg {
-    public static class Type {
-        private String name;
-        private String canonical;
-        private String desugared;
-        private String baseTypeName;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.QUALTYPE;
     }
 
-    private QualArg qual;
-    private Type type;
+    public record Qual(
+            String spelling,
+            boolean hasConst,
+            boolean hasVolatile,
+            boolean hasRestrict,
+            boolean hasUnaligned
+    ) { }
+
+    public record Type(
+            String name,
+            String canonical,
+            String desugared,
+            String baseTypeName
+    ) { }
 }

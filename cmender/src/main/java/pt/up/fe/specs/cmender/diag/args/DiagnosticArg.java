@@ -2,7 +2,6 @@ package pt.up.fe.specs.cmender.diag.args;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.Getter;
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -26,6 +25,6 @@ import lombok.Getter;
         @JsonSubTypes.Type(value = AttrArg.class, name = "attr"),
 
 })
-@Getter
-public abstract class DiagnosticArg {
+public interface DiagnosticArg {
+    DiagnosticArgKind kind();
 }

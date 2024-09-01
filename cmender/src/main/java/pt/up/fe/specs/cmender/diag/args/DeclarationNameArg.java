@@ -1,10 +1,12 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record DeclarationNameArg(
+        String name
 
-@Getter
-@Accessors(fluent = true)
-public class DeclarationNameArg extends DiagnosticArg {
-    private String nName;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.DECLARATION_NAME;
+    }
 }

@@ -18,7 +18,7 @@ public class DiagExporterInvocation {
     private List<String> files = new ArrayList<>();
 
     @Builder.Default
-    private String outputFilepath = "./output.json";
+    private String outputFilepath = "./diags_output.json";
 
     @Builder.Default
     private Lang lang = Lang.C;

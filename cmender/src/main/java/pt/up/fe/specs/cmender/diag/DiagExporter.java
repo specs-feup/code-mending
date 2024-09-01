@@ -1,6 +1,7 @@
 package pt.up.fe.specs.cmender.diag;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import pt.up.fe.specs.cmender.logging.Logging;
@@ -79,7 +80,8 @@ public class DiagExporter {
     // TODO think if this should throw a IllegalStateException or a custom DiagExporterException
     private static List<DiagExporterSingleSourceResult> readResults(String outputFilepath) {
         var mapper = new ObjectMapper();
-        // mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
+
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         try (var bufferedReader = new BufferedReader(new FileReader(outputFilepath))) {
             return mapper.readValue(bufferedReader, new TypeReference<>() {});

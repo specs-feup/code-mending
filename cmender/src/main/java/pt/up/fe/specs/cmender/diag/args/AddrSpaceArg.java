@@ -1,10 +1,12 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record AddrSpaceArg(
+        String addrSpace
 
-@Getter
-@Accessors(fluent = true)
-public class AddrSpaceArg extends DiagnosticArg {
-    private String addrSpace;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.ADDR_SPACE;
+    }
 }

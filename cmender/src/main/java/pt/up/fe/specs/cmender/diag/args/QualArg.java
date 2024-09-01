@@ -1,14 +1,16 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record QualArg(
+        String spelling,
+        boolean hasConst,
+        boolean hasVolatile,
+        boolean hasRestrict,
+        boolean hasUnaligned
 
-@Getter
-@Accessors(fluent = true)
-public class QualArg extends DiagnosticArg {
-    private String spelling;
-    private boolean hasConst;
-    private boolean hasVolatile;
-    private boolean hasRestrict;
-    private boolean hasUnaligned;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.QUAL;
+    }
 }

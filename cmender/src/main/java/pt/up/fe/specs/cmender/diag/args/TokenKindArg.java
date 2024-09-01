@@ -1,12 +1,13 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record TokenKindArg(
+        String name,
+        String spelling,
+        String category
 
-@Getter
-@Accessors(fluent = true)
-public class TokenKindArg extends DiagnosticArg {
-    private String name;
-    private String spelling;
-    private String category;
+) implements DiagnosticArg {
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.TOKEN_KIND;
+    }
 }

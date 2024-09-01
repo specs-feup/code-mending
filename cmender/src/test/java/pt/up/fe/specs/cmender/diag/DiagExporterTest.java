@@ -112,10 +112,27 @@ public class DiagExporterTest {
 
         var exportResult = assertDoesNotThrow(() -> diagExporter.run(exportInvocation));
 
-        System.out.println(exportResult);
         assertNotNull(exportResult.processOutput());
         assertNotNull(exportResult.sourceResults());
         assertThat(exportResult.sourceResults(), hasSize(1));
+    }
+
+    @Test
+    public void testRunDeserialization() {
+        var diagExporter = new DiagExporter(config.diagExporterPath());
+
+        var exportInvocation = DiagExporterInvocation.builder()
+                .files(SourceFiles.getSourceFilepaths(SourceFiles.allSourceFilenames()))
+                .outputFilepath(
+                        Path.of(testTempDir.toString(), "test-run-deserialization-",
+                                UUID.randomUUID().toString()).toString())
+                .build();
+
+        var exportResult = assertDoesNotThrow(() -> diagExporter.run(exportInvocation));
+
+        assertNotNull(exportResult.processOutput());
+        assertNotNull(exportResult.sourceResults());
+        assertThat(exportResult.sourceResults(), hasSize(SourceFiles.allSourceFilenames().length));
     }
 
     @Test

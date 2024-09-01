@@ -1,10 +1,12 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record AttrArg(
+        String spelling
 
-@Getter
-@Accessors(fluent = true)
-public class AttrArg extends DiagnosticArg {
-    private String spelling;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.ATTR;
+    }
 }

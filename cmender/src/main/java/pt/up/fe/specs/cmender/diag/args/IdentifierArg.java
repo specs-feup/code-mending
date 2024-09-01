@@ -1,21 +1,30 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record IdentifierArg(
+    String name,
+    boolean isReserved,
+    boolean hadMacroDef,
+    boolean hasMacroDef,
+    boolean isFinalMacro,
+    boolean isModulesImport,
+    boolean isRestrictExpansion,
+    int builtinID,
+    TokenID tokenID,
+    String interestingIdentifier,
+    boolean isCppKeyword,
+    boolean isCppOperatorKeyword
 
-@Getter
-@Accessors(fluent = true)
-public class IdentifierArg extends DiagnosticArg {
-    private String name;
-    private boolean isReserved;
-    private boolean hadMacroDef;
-    private boolean hasMacroDef;
-    private boolean isFinalMacro;
-    private boolean isModulesImport;
-    private boolean isRestrictExpansion;
-    private int builtinID;
-    private TokenKindArg tokenID;
-    private String interestingIdentifier;
-    private boolean isCppKeyword;
-    private boolean isCppOperatorKeyword;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.IDENTIFIER;
+    }
+
+    public record TokenID(
+            String name,
+            String spelling,
+            String category
+
+    ) { }
 }

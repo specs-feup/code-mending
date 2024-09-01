@@ -1,10 +1,12 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-import lombok.Getter;
-import lombok.experimental.Accessors;
+public record SIntArg(
+        int integer
 
-@Getter
-@Accessors(fluent = true)
-public class SIntArg extends DiagnosticArg {
-    private int value;
+) implements DiagnosticArg {
+
+    @Override
+    public DiagnosticArgKind kind() {
+        return DiagnosticArgKind.SINT;
+    }
 }
