@@ -20,6 +20,9 @@ public class CliArgsParser {
     private static final String DIAG_EXPORTER_SHORT = "dex";
     private static final String DIAG_EXPORTER_LONG = "diag-exporter";
 
+    private static final String MENDFILE_COPY_PER_ITERATION_SHORT = "mfci";
+    private static final String MENDFILE_COPY_PER_ITERATION_LONG = "mendfile-copy-per-iteration";
+
     private static final String VERBOSE_SHORT = "v";
     private static final String VERBOSE_LONG = "verbose";
 
@@ -33,17 +36,21 @@ public class CliArgsParser {
                 .desc("Print version information")
                 .build())
             .addOption(Option.builder(DIAG_EXPORTER_SHORT)
-                        .longOpt(DIAG_EXPORTER_LONG)
-                        .desc("Path for diag-exporter executable")
-                        .argName("path")
-                        .hasArg()
-                        .optionalArg(true)
-                        .type(String.class)
-                        .build())
+                .longOpt(DIAG_EXPORTER_LONG)
+                .desc("Path for diag-exporter executable")
+                .argName("path")
+                .hasArg()
+                .optionalArg(true)
+                .type(String.class)
+                .build())
+            .addOption(Option.builder(MENDFILE_COPY_PER_ITERATION_SHORT)
+                .longOpt(MENDFILE_COPY_PER_ITERATION_LONG)
+                .desc("Create a mendfile copy per iteration")
+                .build())
             .addOption(Option.builder(VERBOSE_SHORT)
-                    .longOpt(VERBOSE_LONG)
-                    .desc("Use verbose output")
-                    .build());
+                .longOpt(VERBOSE_LONG)
+                .desc("Use verbose output")
+                .build());
             /*.addOption(Option.builder("dex")
                 .longOpt("diag-exporter")
                 .desc("Path for diag-exporter executable")
@@ -83,6 +90,7 @@ public class CliArgsParser {
                     .help(cmd.hasOption(HELP_SHORT))
                     .verbose(cmd.hasOption(VERBOSE_SHORT))
                     .diagExporterPath(cmd.getOptionValue(DIAG_EXPORTER_SHORT))
+                    .createMendfileCopyPerIteration(cmd.hasOption(MENDFILE_COPY_PER_ITERATION_SHORT))
                     .files(List.of(files))
                     .build();
         } catch (ParseException e) {

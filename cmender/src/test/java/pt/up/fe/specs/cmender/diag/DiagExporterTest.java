@@ -148,4 +148,6 @@ public class DiagExporterTest {
 
         assertThat(exception.getMessage(), is("diag-exporter process exited with code 1"));
     }
+
+    // TODO test for file not found
 }

@@ -4,6 +4,9 @@ import pt.up.fe.specs.cmender.cli.CliArgsParser;
 import pt.up.fe.specs.cmender.cli.CliArgsParserException;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.logging.Logging;
+import pt.up.fe.specs.cmender.mending.MendingEngine;
+
+import java.util.ArrayList;
 
 public class Launcher {
     public static void main(String[] args) {
@@ -37,5 +40,19 @@ public class Launcher {
             Logging.FILE_LOGGER.error(e);
             System.exit(1);
         }
+
+        double diagExporterTotal = 0;
+        double total = 0;
+        int n = 5;
+
+        for (int i = 0; i < n; i++) {
+            var result = new MendingEngine(invocation).execute();
+
+            diagExporterTotal += result.diagExporterTotalTimeMs();
+            total += result.totalTimeMs();
+        }
+
+        System.out.println("avg diag exporter total time: " + diagExporterTotal/n);
+        System.out.println("avg total time: " + total/n);
     }
 }

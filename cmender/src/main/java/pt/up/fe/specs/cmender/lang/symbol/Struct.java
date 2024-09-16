@@ -5,7 +5,9 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Getter
@@ -17,7 +19,7 @@ public class Struct extends Symbol implements Type {
 
     public Struct(String name, List<Member> members) {
         super(name);
-        this.members = members;
+        this.members = new ArrayList<>(members);
     }
 
     public Struct(String name) {
@@ -29,7 +31,7 @@ public class Struct extends Symbol implements Type {
     }
 
     public void setMembers(List<Member> members) {
-        this.members = members;
+        this.members = new ArrayList<>(members);
     }
 
     @Getter
@@ -56,6 +58,16 @@ public class Struct extends Symbol implements Type {
         @Override
         public String asDefinitionString() {
             return type.modifyVariable(name) + ";";
+        }
+
+        @Override
+        public Set<Symbol> getDirectDependencies() {
+            return type.getDirectDependencies();
+        }
+
+        @Override
+        public void addDirectDependencies(List<Symbol> dependencies) {
+            type.addDirectDependencies(dependencies);
         }
     }
 
@@ -92,5 +104,17 @@ public class Struct extends Symbol implements Type {
     @Override
     public boolean isStructType() {
         return true;
+    }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        var dependencies = new ArrayList<Symbol>();
+        members.forEach(member -> member.addDirectDependencies(dependencies));
+        return new HashSet<>(dependencies);
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) {
+        dependencies.add(this);
     }
 }

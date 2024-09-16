@@ -4,6 +4,9 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+import java.util.Set;
+
 @Getter
 @ToString
 @Accessors(fluent = true)
@@ -28,5 +31,15 @@ public class Variable extends Symbol {
     @Override
     public String asDefinitionString() {
         return type.modifyVariable(name) + ";";
+    }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        return type.getDirectDependencies();
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) {
+        type.addDirectDependencies(dependencies);
     }
 }

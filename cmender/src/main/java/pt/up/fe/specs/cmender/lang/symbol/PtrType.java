@@ -4,6 +4,9 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+import java.util.Set;
+
 @Getter
 @ToString
 @Accessors(fluent = true)
@@ -96,6 +99,16 @@ public class PtrType implements Type {
     @Override
     public boolean isPtrType() {
         return true;
+    }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        return pointeeType.getDirectDependencies();
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) {
+        pointeeType.addDirectDependencies(dependencies);
     }
 }
 

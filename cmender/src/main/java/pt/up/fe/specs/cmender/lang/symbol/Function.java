@@ -5,7 +5,9 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Getter
@@ -20,11 +22,15 @@ public class Function extends Symbol {
     public Function(String name, Type returnType, List<Parameter> parameters) {
         super(name);
         this.returnType = returnType;
-        this.parameters = parameters;
+        this.parameters = new ArrayList<>(parameters);
     }
 
     public Function(String name, Type returnType) {
         this(name, returnType, new ArrayList<>());
+    }
+
+    public Function(String name) {
+        this(name, BasicDataType.VOID);
     }
 
     public void setReturnType(Type returnType) {
@@ -36,7 +42,7 @@ public class Function extends Symbol {
     }
 
     public void setParameters(List<Parameter> parameters) {
-        this.parameters = parameters;
+        this.parameters = new ArrayList<>(parameters);
     }
 
     @Getter
@@ -63,6 +69,16 @@ public class Function extends Symbol {
         @Override
         public String asDefinitionString() {
             return type.modifyVariable(name);
+        }
+
+        @Override
+        public Set<Symbol> getDirectDependencies() {
+            return type.getDirectDependencies();
+        }
+
+        @Override
+        public void addDirectDependencies(List<Symbol> dependencies) {
+            type.addDirectDependencies(dependencies);
         }
     }
 
@@ -113,5 +129,21 @@ public class Function extends Symbol {
         var ret = new Variable("ret", returnType);
 
         return ret.asDefinitionString() + "\n" + "return ret;";
+    }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        var dependencies = new ArrayList<Symbol>();
+
+        returnType.addDirectDependencies(dependencies);
+        parameters.forEach(p -> p.addDirectDependencies(dependencies));
+
+        return new HashSet<>(dependencies);
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) {
+        returnType.addDirectDependencies(dependencies);
+        parameters.forEach(p -> p.addDirectDependencies(dependencies));
     }
 }

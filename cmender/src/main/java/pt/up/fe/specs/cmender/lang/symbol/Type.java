@@ -1,6 +1,8 @@
 package pt.up.fe.specs.cmender.lang.symbol;
 
-public interface Type {
+import java.util.List;
+
+public interface Type extends SymbolDependency {
 
     String getName();
 

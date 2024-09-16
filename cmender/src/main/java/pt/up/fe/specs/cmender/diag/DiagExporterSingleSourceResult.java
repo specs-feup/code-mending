@@ -12,4 +12,15 @@ public record DiagExporterSingleSourceResult(
         int errorCount,
         int fatalCount,
         List<Diagnostic> diags
-) { }
+) {
+    public boolean hasErrors() {
+        return errorCount > 0 || fatalCount > 0;
+    }
+
+    public Diagnostic getFirstError() {
+        return diags.stream()
+                .filter(diagnostic -> diagnostic.level() == DiagnosticLevel.ERROR || diagnostic.level() == DiagnosticLevel.FATAL)
+                .findFirst()
+                .orElse(null);
+    }
+}

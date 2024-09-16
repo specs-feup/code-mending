@@ -4,6 +4,9 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+import java.util.Set;
+
 
 @Getter
 @ToString
@@ -77,5 +80,15 @@ public class ArrayType implements Type {
     @Override
     public boolean isArrayType() {
         return true;
+    }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        return elementType.getDirectDependencies();
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) {
+        elementType.addDirectDependencies(dependencies);
     }
 }

@@ -28,5 +28,15 @@ public class CMenderInvocation {
     private String diagExporterPath = null;
 
     @Builder.Default
+    private Integer maxTotalIterations = 10;
+
+    @Builder.Default
+    private boolean createMendfileCopyPerIteration = false;
+
+    // TODO: Add support for mending in place (i.e., declarations on the source file)
+    /*@Builder.Default
+    private boolean mendingInPlace = false;*/
+
+    @Builder.Default
     private List<String> files = new ArrayList<>();
 }

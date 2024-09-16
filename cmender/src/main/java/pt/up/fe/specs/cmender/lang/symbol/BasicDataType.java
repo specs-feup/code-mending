@@ -1,5 +1,9 @@
 package pt.up.fe.specs.cmender.lang.symbol;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 public enum BasicDataType implements Type {
 
     VOID,
@@ -60,4 +64,12 @@ public enum BasicDataType implements Type {
     public boolean isBooleanType() {
         return this.equals(_BOOL);
     }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        return Set.of();
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) { }
 }

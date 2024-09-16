@@ -1,6 +1,11 @@
 package pt.up.fe.specs.cmender.lang.symbol;
 
-public class Typedef extends Symbol implements Type {
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public class Typedef extends Symbol implements Type, SymbolDependency {
     private Type type;
 
     public Typedef(String name, Type type) {
@@ -24,6 +29,16 @@ public class Typedef extends Symbol implements Type {
         return asDeclarationString();
     }
 
+    /*@Override
+    public List<Symbol> getDependencies() {
+        return type.getDirectSymbolDependencies();
+    }
+
+    @Override
+    public void getDependencies(List<Symbol> dependencies) {
+        dependencies.addAll(type.getDirectSymbolDependencies());
+    }*/
+
     @Override
     public String getName() {
         return name;
@@ -34,6 +49,16 @@ public class Typedef extends Symbol implements Type {
         return name + " " + varName;
     }
 
+    /*@Override
+    public List<Symbol> getDirectSymbolDependencies() {
+        return type.getDirectSymbolDependencies();
+    }
+
+    @Override
+    public void updateDirectSymbolDependencies(List<Symbol> dependencies) {
+        type.updateDirectSymbolDependencies(dependencies);
+    }*/
+
     @Override
     public boolean isCompositeDataType() {
         return true;
@@ -42,5 +67,17 @@ public class Typedef extends Symbol implements Type {
     @Override
     public boolean isTypedefType() {
         return true;
+    }
+
+    @Override
+    public Set<Symbol> getDirectDependencies() {
+        var dependencies = new ArrayList<Symbol>();
+        type.addDirectDependencies(dependencies);
+        return new HashSet<>(dependencies);
+    }
+
+    @Override
+    public void addDirectDependencies(List<Symbol> dependencies) {
+        dependencies.add(this);
     }
 }

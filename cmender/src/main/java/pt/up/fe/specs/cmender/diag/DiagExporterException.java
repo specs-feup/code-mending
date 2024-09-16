@@ -23,6 +23,7 @@ public class DiagExporterException extends Exception {
 
     // TODO improve with error codes (add more error granularity in diag-exporter)
     public static DiagExporterException ofBadProcessExitCode(int exitCode, String processOutput) {
+        // TODO remove this (diag-exporter no longer outputs this message)
         var fileAlreadyExistsPattern = Pattern.compile("^(could not save results to output file; file already exists: .+)$",
                 Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
 
