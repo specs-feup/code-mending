@@ -77,26 +77,23 @@ void DiagnosticExporterAction::EndSourceFileAction() {
                     create_directories(directory);
                     llvm::outs() << "Directory created: " << directory << "\n";
                 } catch (const std::filesystem::filesystem_error& e) {
+                    llvm::outs().flush();
                     llvm::errs() << "Error creating directory: " << e.what() << "\n";
                     std::exit(1);
                 }
             }
 
-            if (!std::filesystem::exists(outputFilepath)) {
-                std::ofstream file(outputFilepath);
+            std::ofstream file(outputFilepath);
 
-                if (!file.is_open()) {
-                    llvm::errs() << "Could not open the output file for writing!\n";
-                    std::exit(1);
-                }
-
-                file << diagsInfos.dump(2);
-
-                file.close();
-            } else {
-                llvm::errs() << "Could not save results to output file: file already exists: " << outputFilepath << "\n";
+            if (!file.is_open()) {
+                llvm::outs().flush();
+                llvm::errs() << "Could not open the output file for writing!\n";
                 std::exit(1);
             }
+
+            file << diagsInfos.dump(2);
+
+            file.close();
         }
     }
 }
