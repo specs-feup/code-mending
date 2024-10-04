@@ -53,7 +53,8 @@ llvm_map_components_to_libnames(llvm_libs core)
 set(SOURCE_FILES
         src/main.cpp
         src/DiagnosticExporterAction.cpp
-        src/JsonDiagnosticConsumer.cpp)
+        src/JsonDiagnosticConsumer.cpp
+        src/QualTypeJsonConverter.cpp)
 
 add_executable(diag-exporter ${SOURCE_FILES})
 
