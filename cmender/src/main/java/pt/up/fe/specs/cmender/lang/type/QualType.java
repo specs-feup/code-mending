@@ -26,9 +26,7 @@ public record QualType(
         type.addDirectDependencies(dependencies, table);
     }
 
-    public String substituteTypeUsageWithId(String replacement) {
-        // TODO check for functions returning function pointers
-        //  syntax: int (*get_operation(char op))(int, int);
+    public String substituteTypeUsageId(String replacement) {
         String mockIdentifier = "diag_exporter_id";
 
         return typeUsageInDecls.replace(mockIdentifier, replacement);

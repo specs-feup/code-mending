@@ -77,7 +77,7 @@ public class FunctionSymbol extends Symbol {
 
         @Override
         public String asDefinitionString() {
-            return qualType.substituteTypeUsageWithId(name);
+            return qualType.substituteTypeUsageId(name);
         }
 
         @Override
@@ -106,7 +106,7 @@ public class FunctionSymbol extends Symbol {
                         .collect(Collectors.joining(",")) +
                 ")";
 
-        return returnType.substituteTypeUsageWithId(usageReplacement) + ";";
+        return returnType.substituteTypeUsageId(usageReplacement) + ";";
         /*return returnType.canonicalTypeAsString() + " " + name + "(" +
                 parameters.stream()
                         .map(Parameter::asDefinitionString)
@@ -127,7 +127,7 @@ public class FunctionSymbol extends Symbol {
                         .collect(Collectors.joining(",")) +
                 ")";
 
-        return returnType.substituteTypeUsageWithId(usageReplacement)
+        return returnType.substituteTypeUsageId(usageReplacement)
                 + " " + (body.isEmpty() ? "{}" : "{\n" + body + "\n}");
 
         /*return returnType.canonicalTypeAsString() + " " + name + "(" +

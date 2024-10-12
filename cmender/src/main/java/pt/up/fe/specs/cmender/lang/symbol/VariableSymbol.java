@@ -3,6 +3,7 @@ package pt.up.fe.specs.cmender.lang.symbol;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+
 import pt.up.fe.specs.cmender.lang.type.QualType;
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
@@ -34,8 +35,7 @@ public class VariableSymbol extends Symbol {
 
     @Override
     public String asDefinitionString() {
-        //System.out.println("VariableSymbol.asDefinitionString: " + qualType.substituteTypeUsageWithId(name));
-        return qualType.substituteTypeUsageWithId(name) + ";";
+        return qualType.substituteTypeUsageId(name) + ";";
     }
 
     @Override

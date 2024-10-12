@@ -21,7 +21,7 @@ public class TypedefSymbol extends Symbol {
 
     @Override
     public String asDeclarationString() {
-        return "typedef " + qualType.substituteTypeUsageWithId(name) + ";";
+        return "typedef " + qualType.substituteTypeUsageId(name) + ";";
     }
 
     @Override

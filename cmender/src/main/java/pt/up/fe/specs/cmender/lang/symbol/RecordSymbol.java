@@ -59,7 +59,7 @@ public class RecordSymbol extends Symbol {
 
         @Override
         public String asDefinitionString() {
-            return qualType.substituteTypeUsageWithId(name) + ";";
+            return qualType.substituteTypeUsageId(name) + ";";
         }
 
         @Override

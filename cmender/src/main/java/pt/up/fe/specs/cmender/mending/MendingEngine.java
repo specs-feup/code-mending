@@ -132,7 +132,9 @@ public class MendingEngine {
                 // avoid writing the mendfile if no mends were applied
                 // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
                 // iteration
-                // TODO maybe have flag to write the mendfile even if no mends were applied
+                // TODO maybe have flag to write the mendfile even if no mends were applied.
+                //     so far we don't apply mending if we have an unknown diagnostic, but this is also a situation
+                //    where we stop the mending process completely
                 if (diagnosticMendingResult.appliedMend()) {
                     long mendfileWritingTime = writeMendingFile(mendingTable, sourceFileCopy, currentIteration);
 
