@@ -3,8 +3,9 @@ package pt.up.fe.specs.cmender.diag;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Getter
 @Accessors(fluent = true)
@@ -19,15 +20,9 @@ public enum DiagnosticID {
     private static final Map<Integer, DiagnosticID> ID_MAP;
 
     static {
-        ID_MAP = new HashMap<>();
-        for (DiagnosticID diagnosticID : DiagnosticID.values()) {
-            // TODO can we add unknown to the map?
-            if (diagnosticID == UNKNOWN) {
-                continue;
-            }
-
-            ID_MAP.put(diagnosticID.intID, diagnosticID);
-        }
+        ID_MAP = Arrays
+                    .stream(DiagnosticID.values())
+                    .collect(Collectors.toMap(DiagnosticID::intID, diagnosticID -> diagnosticID));
     }
 
     DiagnosticID(int intID) {
@@ -35,14 +30,6 @@ public enum DiagnosticID {
     }
 
     public static DiagnosticID fromIntID(int id) {
-        /*for (var value : values()) {
-            if (value.intID == id) {
-                return value;
-            }
-        }*/
-
         return ID_MAP.getOrDefault(id, UNKNOWN);
-        // return null;
-        //throw new IllegalArgumentException("Unknown diagnostic ID: " + id);
     }
 }
