@@ -39,8 +39,8 @@ public class MendingEngine {
              * It contains the necessary mends to fix the errors found by the DiagExporter tool.
              */""";
 
-    // TODO change to "mends" or "mend"? because mending is the process, not the result
-    private static final String MENDFILE_NAME = "mending";
+    // because "mending" is the process, not the result. "mends" is the result
+    private static final String MENDFILE_NAME = "mends";
 
     private static final String MENDFILE_FILENAME = MENDFILE_NAME + ".h";
 
@@ -129,20 +129,20 @@ public class MendingEngine {
 
                 DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
 
-                // avoid writing the mendfile if no mends were applied
+                // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
                 // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
                 // iteration
-                // TODO maybe have flag to write the mendfile even if no mends were applied.
-                //     so far we don't apply mending if we have an unknown diagnostic, but this is also a situation
+                //
+                // so far we don't apply mending if we have an unknown diagnostic, but this is also a situation
                 //    where we stop the mending process completely
-                if (diagnosticMendingResult.appliedMend()) {
-                    long mendfileWritingTime = writeMendingFile(mendingTable, sourceFileCopy, currentIteration);
+                if (diagnosticMendingResult.appliedMend() || !menderInvocation.isCreateMendfileOnlyOnAlterations()) {
+                    long mendfileWritingTime = writeMendfile(mendingTable, sourceFileCopy, currentIteration);
 
                     mendfileWritingTotalTime += mendfileWritingTime;
                 }
 
                 success = diagnosticMendingResult.success();
-                finished = success || diagnosticMendingResult.finishedPrematurely();
+                finished = success || diagnosticMendingResult.finishedPrematurely(menderInvocation);
             }
 
             return CMenderResult.builder()
@@ -223,8 +223,6 @@ public class MendingEngine {
 
             var firstError = sourceResult.getFirstError();
 
-            // TODO maybe add a flag to stop/continue on first unknown diagnostic (this allows to possibly reach a better state, or stop if the code is too broken)
-
             System.out.println(firstError);
 
             switch (DiagnosticID.fromIntID(firstError.id())) {
@@ -256,7 +254,7 @@ public class MendingEngine {
         });
     }
 
-    private long writeMendingFile(MendingTable table, String sourceFileCopy, long currentIteration) {
+    private long writeMendfile(MendingTable table, String sourceFileCopy, long currentIteration) {
         return TimeMeasure.measureElapsed(() -> {
             try {
                 var mendingDirPath = Paths.get(sourceFileCopy).getParent();

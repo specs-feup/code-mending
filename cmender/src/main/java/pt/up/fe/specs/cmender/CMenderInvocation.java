@@ -33,6 +33,13 @@ public class CMenderInvocation {
     @Builder.Default
     private boolean createMendfileCopyPerIteration = false;
 
+    @Builder.Default
+    private boolean createMendfileOnlyOnAlterations = false;
+
+    // this allows to possibly reach a better state, or stop if the code is too broken
+    @Builder.Default
+    private boolean continueOnUnknownDiagnostic = false;
+
     // TODO: Add support for mending in place (i.e., declarations on the source file)
     /*@Builder.Default
     private boolean mendingInPlace = false;*/

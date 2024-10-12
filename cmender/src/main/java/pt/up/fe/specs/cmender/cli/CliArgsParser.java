@@ -20,8 +20,14 @@ public class CliArgsParser {
     private static final String DIAG_EXPORTER_SHORT = "dex";
     private static final String DIAG_EXPORTER_LONG = "diag-exporter";
 
-    private static final String MENDFILE_COPY_PER_ITERATION_SHORT = "mfci";
+    private static final String MENDFILE_COPY_PER_ITERATION_SHORT = "mendfile-cpi";
     private static final String MENDFILE_COPY_PER_ITERATION_LONG = "mendfile-copy-per-iteration";
+
+    private static final String MENDFILE_ONLY_ON_ALTERATIONS_SHORT = "mendfile-ooa";
+    private static final String MENDFILE_ONLY_ON_ALTERATIONS_LONG = "mendfile-only-on-alterations";
+
+    private static final String CONTINUE_ON_UNKNOWN_DIAGNOSTIC_SHORT = "cont-on-unknown-diag";
+    private static final String CONTINUE_ON_UNKNOWN_DIAGNOSTIC_LONG = "continue-on-unknown-diag";
 
     private static final String VERBOSE_SHORT = "v";
     private static final String VERBOSE_LONG = "verbose";
@@ -46,6 +52,14 @@ public class CliArgsParser {
             .addOption(Option.builder(MENDFILE_COPY_PER_ITERATION_SHORT)
                 .longOpt(MENDFILE_COPY_PER_ITERATION_LONG)
                 .desc("Create a mendfile copy per iteration")
+                .build())
+            .addOption(Option.builder(MENDFILE_ONLY_ON_ALTERATIONS_SHORT)
+                .longOpt(MENDFILE_ONLY_ON_ALTERATIONS_LONG)
+                .desc("Create a mendfile only on when an alteration occurs (i.e., new mend is applied)")
+                .build())
+            .addOption(Option.builder(CONTINUE_ON_UNKNOWN_DIAGNOSTIC_SHORT)
+                .longOpt(CONTINUE_ON_UNKNOWN_DIAGNOSTIC_LONG)
+                .desc("Continue even when an unknown diagnostic is found during a mending iteration")
                 .build())
             .addOption(Option.builder(VERBOSE_SHORT)
                 .longOpt(VERBOSE_LONG)
@@ -91,6 +105,8 @@ public class CliArgsParser {
                     .verbose(cmd.hasOption(VERBOSE_SHORT))
                     .diagExporterPath(cmd.getOptionValue(DIAG_EXPORTER_SHORT))
                     .createMendfileCopyPerIteration(cmd.hasOption(MENDFILE_COPY_PER_ITERATION_SHORT))
+                    .createMendfileOnlyOnAlterations(cmd.hasOption(MENDFILE_ONLY_ON_ALTERATIONS_SHORT))
+                    .continueOnUnknownDiagnostic(cmd.hasOption(CONTINUE_ON_UNKNOWN_DIAGNOSTIC_SHORT))
                     .files(List.of(files))
                     .build();
         } catch (ParseException e) {
