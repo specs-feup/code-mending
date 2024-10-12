@@ -1,11 +1,9 @@
 package pt.up.fe.specs.cmender.diag.args;
 
+import pt.up.fe.specs.cmender.lang.type.Qualifiers;
+
 public record QualArg(
-        String spelling,
-        boolean hasConst,
-        boolean hasVolatile,
-        boolean hasRestrict,
-        boolean hasUnaligned
+        Qualifiers qual
 
 ) implements DiagnosticArg {
 

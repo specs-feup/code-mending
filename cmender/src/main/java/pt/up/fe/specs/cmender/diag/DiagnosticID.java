@@ -11,6 +11,7 @@ import java.util.Map;
 public enum DiagnosticID {
     EXT_IMPLICIT_FUNCTION_DECL_C99(4912),
     ERR_UNDECLARED_VAR_USE(4694),
+    ERR_TYPECHECK_CONVERT_INCOMPATIBLE(4598),
     UNKNOWN(-1);
 
     private final int intID;

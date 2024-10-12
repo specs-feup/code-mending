@@ -3,6 +3,8 @@ package pt.up.fe.specs.cmender.lang.symbol;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -13,16 +15,16 @@ import java.util.stream.Collectors;
 @Getter
 @ToString
 @Accessors(fluent = true)
-public class Struct extends Symbol implements Type {
+public class RecordSymbol extends Symbol {
 
     private List<Member> members;
 
-    public Struct(String name, List<Member> members) {
+    public RecordSymbol(String name, List<Member> members) {
         super(name);
         this.members = new ArrayList<>(members);
     }
 
-    public Struct(String name) {
+    public RecordSymbol(String name) {
         this(name, new ArrayList<>());
     }
 
@@ -39,15 +41,15 @@ public class Struct extends Symbol implements Type {
     @Accessors(fluent = true)
     public static class Member extends Symbol {
 
-        private Type type;
+        private QualType qualType;
 
-        public Member(String name, Type type) {
+        public Member(String name, QualType qualType) {
             super(name);
-            this.type = type;
+            this.qualType = qualType;
         }
 
-        public void setType(Type type) {
-            this.type = type;
+        public void setType(QualType qualType) {
+            this.qualType = qualType;
         }
 
         @Override
@@ -57,17 +59,17 @@ public class Struct extends Symbol implements Type {
 
         @Override
         public String asDefinitionString() {
-            return type.modifyVariable(name) + ";";
+            return qualType.substituteTypeUsageWithId(name) + ";";
         }
 
         @Override
-        public Set<Symbol> getDirectDependencies() {
-            return type.getDirectDependencies();
+        public Set<Symbol> getDirectDependencies(MendingTable table) {
+            return qualType.getDirectDependencies(table);
         }
 
         @Override
-        public void addDirectDependencies(List<Symbol> dependencies) {
-            type.addDirectDependencies(dependencies);
+        public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
+            qualType.addDirectDependencies(dependencies, table);
         }
     }
 
@@ -78,6 +80,7 @@ public class Struct extends Symbol implements Type {
 
     @Override
     public String asDefinitionString() {
+        // TODO support other records
         return "struct " + name + " {" +
                 members.stream()
                         .map(Member::asDefinitionString)
@@ -87,34 +90,16 @@ public class Struct extends Symbol implements Type {
     }
 
     @Override
-    public String getName() {
-        return "struct " + name;
-    }
-
-    @Override
-    public String modifyVariable(String varName) {
-        return getName() + " " + varName;
-    }
-
-    @Override
-    public boolean isCompositeDataType() {
-        return true;
-    }
-
-    @Override
-    public boolean isStructType() {
-        return true;
-    }
-
-    @Override
-    public Set<Symbol> getDirectDependencies() {
+    public Set<Symbol> getDirectDependencies(MendingTable table) {
         var dependencies = new ArrayList<Symbol>();
-        members.forEach(member -> member.addDirectDependencies(dependencies));
+        members.forEach(member -> member.addDirectDependencies(dependencies, table));
         return new HashSet<>(dependencies);
     }
 
     @Override
-    public void addDirectDependencies(List<Symbol> dependencies) {
+    public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
+        // we don't add recursively the types of the struct members because we only care about the
+        //  direct dependency (this symbol) to build a dependency graph
         dependencies.add(this);
     }
 }

@@ -16,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = IdentifierArg.class, name = "identifier"),
         @JsonSubTypes.Type(value = AddrSpaceArg.class, name = "addr_space"),
         @JsonSubTypes.Type(value = QualArg.class, name = "qual"),
-        @JsonSubTypes.Type(value = QualtypeArg.class, name = "qualtype"),
+        @JsonSubTypes.Type(value = QualTypeArg.class, name = "qualtype"),
         @JsonSubTypes.Type(value = DeclarationNameArg.class, name = "declaration_name"),
         @JsonSubTypes.Type(value = NamedDeclArg.class, name = "named_decl"),
         @JsonSubTypes.Type(value = NestedNameSpecArg.class, name = "nested_name_spec"),

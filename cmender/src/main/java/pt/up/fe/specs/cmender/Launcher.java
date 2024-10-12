@@ -6,8 +6,6 @@ import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.logging.Logging;
 import pt.up.fe.specs.cmender.mending.MendingEngine;
 
-import java.util.ArrayList;
-
 public class Launcher {
     public static void main(String[] args) {
         var properties = CMenderProperties.get();
@@ -43,7 +41,7 @@ public class Launcher {
 
         double diagExporterTotal = 0;
         double total = 0;
-        int n = 5;
+        int n = 1;
 
         for (int i = 0; i < n; i++) {
             var result = new MendingEngine(invocation).execute();

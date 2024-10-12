@@ -1,8 +1,9 @@
 package pt.up.fe.specs.cmender.diag.args;
 
-public record QualtypeArg(
-        Qual qual,
-        Type type
+import pt.up.fe.specs.cmender.lang.type.QualType;
+
+public record QualTypeArg(
+        QualType qualType
 
 ) implements DiagnosticArg {
 
@@ -10,19 +11,4 @@ public record QualtypeArg(
     public DiagnosticArgKind kind() {
         return DiagnosticArgKind.QUALTYPE;
     }
-
-    public record Qual(
-            String spelling,
-            boolean hasConst,
-            boolean hasVolatile,
-            boolean hasRestrict,
-            boolean hasUnaligned
-    ) { }
-
-    public record Type(
-            String name,
-            String canonical,
-            String desugared,
-            String baseTypeName
-    ) { }
 }

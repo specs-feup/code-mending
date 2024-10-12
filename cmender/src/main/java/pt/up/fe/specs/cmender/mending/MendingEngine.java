@@ -129,6 +129,10 @@ public class MendingEngine {
 
                 DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
 
+                // avoid writing the mendfile if no mends were applied
+                // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
+                // iteration
+                // TODO maybe have flag to write the mendfile even if no mends were applied
                 if (diagnosticMendingResult.appliedMend()) {
                     long mendfileWritingTime = writeMendingFile(mendingTable, sourceFileCopy, currentIteration);
 
@@ -137,21 +141,6 @@ public class MendingEngine {
 
                 success = diagnosticMendingResult.success();
                 finished = success || diagnosticMendingResult.finishedPrematurely();
-
-                /*if (diagnosticMendingResult.success()) {
-                    success = true;
-                    finished = true;
-                } else {
-                    long mendfileWritingTime = writeMendingFile(mendingTable, sourceFileCopy, currentIteration);
-
-                    mendfileWritingTotalTime += mendfileWritingTime;
-
-                    // TODO if this is true should we even write the mendfile? e.g., on unknown diagnostic we dont
-                    //    change the MendingTable so we will always get the same result and we will write a repeated mendfile
-                    if (diagnosticMendingResult.finishedPrematurely()) {
-                        finished = true;
-                    }
-                }*/
             }
 
             return CMenderResult.builder()
@@ -175,7 +164,7 @@ public class MendingEngine {
 
         var result = cMenderTimedResult.result();
 
-        System.out.println(result.success() ? "Code was successfully mended." : "Code was not successfully mended.");
+        System.out.println(result.success() ? "Code was successfully mended." : "Code was unsuccessfully mended.");
 
         var totalTime = cMenderTimedResult.elapsedTime();
 
@@ -234,11 +223,15 @@ public class MendingEngine {
 
             // TODO maybe add a flag to stop/continue on first unknown diagnostic (this allows to possibly reach a better state, or stop if the code is too broken)
 
+            System.out.println(firstError);
+
             switch (DiagnosticID.fromIntID(firstError.id())) {
                 case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
                         MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
                 case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
                         MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
+                        MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
                 case DiagnosticID.UNKNOWN -> {
                     MendingHandlers.handleUnknown(firstError, mendingTable);
                     return DiagnosticMendResult.builder()

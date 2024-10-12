@@ -4,11 +4,12 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
-import pt.up.fe.specs.cmender.lang.symbol.Function;
-import pt.up.fe.specs.cmender.lang.symbol.Struct;
+import pt.up.fe.specs.cmender.lang.symbol.EnumSymbol;
+import pt.up.fe.specs.cmender.lang.symbol.FunctionSymbol;
+import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.Symbol;
-import pt.up.fe.specs.cmender.lang.symbol.Typedef;
-import pt.up.fe.specs.cmender.lang.symbol.Variable;
+import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
+import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -25,34 +26,37 @@ import java.util.Set;
 @Accessors(fluent = true)
 public class MendingTable {
 
-    private final Map<String, Variable> variables;
+    private final Map<String, VariableSymbol> variables;
 
-    private final Map<String, Function> functions;
+    private final Map<String, FunctionSymbol> functions;
 
-    private final Map<String, Typedef> typedefs;
+    private final Map<String, TypedefSymbol> typedefs;
 
-    private final Map<String, Struct> structs;
+    private final Map<String, RecordSymbol> structs;
+
+    private final Map<String, EnumSymbol> enums;
 
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
         typedefs = new HashMap<>();
         structs = new HashMap<>();
+        enums = new HashMap<>();
     }
 
-    public void add(Variable variable) {
+    public void add(VariableSymbol variable) {
         variables.put(variable.name(), variable);
     }
 
-    public void add(Function function) {
+    public void add(FunctionSymbol function) {
         functions.put(function.name(), function);
     }
 
-    public void add(Typedef typedef) {
+    public void add(TypedefSymbol typedef) {
         typedefs.put(typedef.name(), typedef);
     }
 
-    public void add(Struct struct) {
+    public void add(RecordSymbol struct) {
         structs.put(struct.name(), struct);
     }
 
@@ -64,11 +68,12 @@ public class MendingTable {
         var symbols = new ArrayList<Symbol>();
         symbols.addAll(typedefs.values());
         symbols.addAll(structs.values());
+        symbols.addAll(enums.values());
 
         for (var symbol : symbols) {
             graph.put(symbol, new HashSet<>());
 
-            for (var dep : symbol.getDirectDependencies()) {
+            for (var dep : symbol.getDirectDependencies(this)) {
                 if (graph.containsKey(dep)) {
                     graph.get(dep).add(symbol);
                 } else {
