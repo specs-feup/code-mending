@@ -13,6 +13,7 @@
 #include <sstream>
 
 #include "JsonDiagnosticConsumer.h"
+#include "QualTypeJsonConverter.h"
 
 const std::string JsonDiagnosticConsumer::diagDescriptionsTable[clang::diag::DIAG_UPPER_LIMIT] = {
     #define DIAG(ENUM, CLASS, DEFAULT_SEVERITY, DESC, GROUP, SFINAE, NOWERROR,     \
@@ -176,7 +177,7 @@ int JsonDiagnosticConsumer::getGroup(const unsigned diagID) {
     return static_cast<int>(group.value());
 }
 
-ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &info) const {
+ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &info) {
     const auto engine = info.getDiags();
 
     llvm::SmallVector<char, 256> message{};
@@ -264,7 +265,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
 
                 messageInfo["args"].push_back({
                     {"kind", "addr_space"},
-                    {"addrSpace", addrSpace}
+                    {"langAddressSpace", addrSpace}
                 });
                 break;
             }
@@ -273,33 +274,16 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
 
                 messageInfo["args"].push_back({
                     {"kind", "qual"},
-                    {"spelling", qualifiers.getAsString()},
-                    {"hasConst", qualifiers.hasConst()},
-                    {"hasVolatile", qualifiers.hasVolatile()},
-                    {"hasRestrict", qualifiers.hasRestrict()},
-                    {"hasUnaligned", qualifiers.hasUnaligned()}
+                    {"qual", QualTypeJsonConverter::convertQualifiersToJson(qualifiers)}
                 });
                 break;
             }
             case clang::DiagnosticsEngine::ak_qualtype: {
                 auto qualType = clang::QualType::getFromOpaquePtr(reinterpret_cast<void *>(info.getRawArg(i)));
-                auto qualifiers = qualType.getQualifiers();
 
                 messageInfo["args"].push_back({
                     {"kind", "qualtype"},
-                    {"type", {
-                        {"name", qualType.getAsString()},
-                        {"canonical", qualType.getCanonicalType().getAsString()},
-                        {"desugared", qualType.getDesugaredType(compilerInstance.getASTContext()).getAsString()},
-                        {"baseTypeName", qualType.getBaseTypeIdentifier()? qualType.getBaseTypeIdentifier()->getName() : ""}
-                    }},
-                    {"qual", {
-                        {"spelling", qualifiers.getAsString()},
-                        {"hasConst", qualifiers.hasConst()},
-                        {"hasVolatile", qualifiers.hasVolatile()},
-                        {"hasRestrict", qualifiers.hasRestrict()},
-                        {"hasUnaligned", qualifiers.hasUnaligned()}
-                    }}
+                    {"qualType", qualTypeJsonConverter.convertQualTypeToJson(qualType)}
                 });
                 break;
             }

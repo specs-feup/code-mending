@@ -6,11 +6,15 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <nlohmann/json.hpp>
 
+#include "QualTypeJsonConverter.h"
+
 using ordered_json = nlohmann::ordered_json;
 
 class JsonDiagnosticConsumer : public clang::DiagnosticConsumer {
 private:
     clang::CompilerInstance &compilerInstance;
+
+    QualTypeJsonConverter qualTypeJsonConverter;
 
     ordered_json diagsInfo;
 
@@ -32,6 +36,8 @@ private:
 
     static constexpr unsigned diagsNum = std::size(diagDescriptionsTable);
 
+    /***************************************************************************/
+
     void updateDiagnosticCounts(clang::DiagnosticsEngine::Level level);
 
     static ordered_json getDescription(unsigned diagID);
@@ -42,7 +48,7 @@ private:
 
     static int getGroup(unsigned diagID);
 
-    ordered_json getMessageInfo(const clang::Diagnostic &info) const;
+    ordered_json getMessageInfo(const clang::Diagnostic &info);
 
     static ordered_json getPresumedLocInfo(const clang::SourceLocation &sLoc, const clang::SourceManager &sManager);
 
@@ -57,7 +63,9 @@ private:
     static ordered_json getTokenKindSpelling(clang::tok::TokenKind tokenKind);
 
 public:
-    explicit JsonDiagnosticConsumer(clang::CompilerInstance &compilerInstance_) : compilerInstance(compilerInstance_) {
+    explicit JsonDiagnosticConsumer(clang::CompilerInstance &compilerInstance_)
+                : compilerInstance(compilerInstance_),
+                    qualTypeJsonConverter(compilerInstance_.getASTContext()) {
         const auto fileEntry =
             compilerInstance.getSourceManager().getFileEntryForID(compilerInstance.getSourceManager().getMainFileID());
 
