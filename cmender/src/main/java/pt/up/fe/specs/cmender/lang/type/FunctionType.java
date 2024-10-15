@@ -1,5 +1,6 @@
 package pt.up.fe.specs.cmender.lang.type;
 
+import com.fasterxml.jackson.annotation.JsonValue;
 import pt.up.fe.specs.cmender.lang.symbol.Symbol;
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
@@ -17,7 +18,12 @@ public record FunctionType(
 
     public enum FunctionTypeKind {
         PROTO,
-        NO_PROTO
+        NO_PROTO;
+
+        @JsonValue
+        public String getAsString() {
+            return this.name().toLowerCase();
+        }
     }
 
     @Override
