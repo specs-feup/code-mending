@@ -15,6 +15,9 @@ import java.util.ArrayList;
 @Accessors(fluent = true)
 public class DiagExporterInvocation {
     @Builder.Default
+    private List<String> includePaths = new ArrayList<>();
+
+    @Builder.Default
     private List<String> files = new ArrayList<>();
 
     @Builder.Default
@@ -56,6 +59,10 @@ public class DiagExporterInvocation {
         args.add("-std=" + standard.getClangInvocationSpelling());
         args.add("-ferror-limit=" + errorLimit);
 
+        for (String includePath : includePaths) {
+            args.add("-I"+includePath);
+        }
+
         return args;
     }
 
@@ -79,7 +86,12 @@ public class DiagExporterInvocation {
                         outputFilepath,
                         lang.getClangInvocationSpelling(),
                         standard.getClangInvocationSpelling(),
-                        errorLimit));
+                        errorLimit))
+                .append(" ");
+
+        for (String includePath : includePaths) {
+            stringBuilder.append("-I").append(includePath).append(" ");
+        }
 
         return stringBuilder.toString();
     }

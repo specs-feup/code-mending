@@ -46,8 +46,9 @@ public class Launcher {
         for (int i = 0; i < n; i++) {
             var result = new MendingEngine(invocation).execute();
 
-            diagExporterTotal += result.diagExporterTotalTimeMs();
-            total += result.totalTimeMs();
+            System.out.println(result);
+            //diagExporterTotal += result.diagExporterTotalTimeMs();
+            //total += result.totalTimeMs();
         }
 
         System.out.println("avg diag exporter total time: " + diagExporterTotal/n);

@@ -1,19 +1,21 @@
 package pt.up.fe.specs.cmender.mending;
 
+import pt.up.fe.specs.cmender.cli.CliReporting;
+import pt.up.fe.specs.cmender.data.MendingDirData;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.diag.args.DeclarationNameArg;
-import pt.up.fe.specs.cmender.diag.args.DiagnosticArgKind;
 import pt.up.fe.specs.cmender.diag.args.IdentifierArg;
-import pt.up.fe.specs.cmender.diag.args.QualTypeArg;
+import pt.up.fe.specs.cmender.diag.args.StdStringArg;
 import pt.up.fe.specs.cmender.lang.symbol.FunctionSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
-import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
-import pt.up.fe.specs.cmender.lang.type.LangAddressSpace;
 import pt.up.fe.specs.cmender.lang.type.QualType;
 import pt.up.fe.specs.cmender.lang.type.Qualifiers;
 import pt.up.fe.specs.cmender.lang.type.RecordType;
-import pt.up.fe.specs.cmender.lang.type.Type;
+import pt.up.fe.specs.cmender.logging.Logging;
+
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class MendingHandlers {
 
@@ -78,10 +80,23 @@ public class MendingHandlers {
     public static void handleErrTypecheckConvertIncompatible(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Incompatible type conversion");
 
-        var codeSnippet = diag.codeSnippet();
+        var sourceRanges = diag.sourceRanges();
+
+
+
+        /*sourceRanges.stream().filter(
+                sourceRange -> {
+                    var functionPattern = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(");
+                    var matcher = functionPattern.matcher(sourceRange.);
+
+                }
+        )*/
+
+        /*var codeSnippet = diag.codeSnippet();
 
         // TODO for now we assume the lhs is a variable, but it can also be e.g., a struct member
         var equalsLhs = codeSnippet.substring(0, codeSnippet.indexOf("=")).trim();
+        var equalsRhs = codeSnippet.substring(codeSnippet.indexOf("=") + 1).trim();
 
         // For now we assume that the file has no comments, so we can just take the last word
         // TODO We also assume that only one declarator is present in the lhs
@@ -104,7 +119,6 @@ public class MendingHandlers {
 
         var variable = mendingTable.variables().get(varName);
 
-        // we dont need to set the symbols in EnumType and RecordType because they are already set in the QualType
         var qualTypeArgs = diag.message().args().stream().filter(
                 arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
         ).toList();
@@ -114,10 +128,18 @@ public class MendingHandlers {
         var correctQualTypeArg = (QualTypeArg) qualTypeArgs.get(1); // first is the wrong, second is the correct
 
         variable.setQualType(correctQualTypeArg.qualType());
-        // TODO delete (should only be deleted if there are no usages of it)
+        // TODO delete (should only be deleted if there are no usages of it)*/
     }
 
+    public static void handleErrTypecheckInvalidOperands(Diagnostic diag, MendingTable mendingTable) {
+    }
+
+   public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
+   }
+
+
     public static void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
+        CliReporting.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
+        Logging.FILE_LOGGER.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
     }
 }

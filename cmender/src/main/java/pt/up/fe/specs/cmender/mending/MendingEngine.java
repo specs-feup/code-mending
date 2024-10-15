@@ -3,6 +3,7 @@ package pt.up.fe.specs.cmender.mending;
 import pt.up.fe.specs.cmender.CMenderInvocation;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.CMenderDataManager;
+import pt.up.fe.specs.cmender.data.MendingDirData;
 import pt.up.fe.specs.cmender.diag.DiagExporter;
 import pt.up.fe.specs.cmender.diag.DiagExporterException;
 import pt.up.fe.specs.cmender.diag.DiagExporterInvocation;
@@ -23,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MendingEngine {
     private static final String MENDING_DISCLAIMER_IN_SOURCE = """
@@ -65,7 +67,7 @@ public class MendingEngine {
         CliReporting.warning("only one file is supported at the moment, the first file will be used");
         Logging.FILE_LOGGER.warn("only one file is supported at the moment, the first file will be used");
 
-        // TODO support multiple files (also think if one invocation per file is the best approach
+        // TODO support multiple files (also think if one diag-exporter invocation per file is the best approach
         //  or have a single invocation for multiple files)
         // TODO how should multithreading be handled? (e.g., one thread per batch of files etc.)
 
@@ -73,18 +75,31 @@ public class MendingEngine {
 
         System.out.println(file);
 
-        var sourceFileCopy = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME);
+        /*var sourceFileCopy = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME);
 
         System.out.println(sourceFileCopy);
 
         if (sourceFileCopy == null) {
             return null;
+        }*/
+
+        var mendingDirData = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME);
+
+        System.out.println(mendingDirData);
+
+        if (mendingDirData == null) {
+            return null;
         }
 
-        return mend(sourceFileCopy);
+        return CMenderResult.builder()
+                .invocation(menderInvocation)
+                .sourceResults(List.of(mend(file, mendingDirData)))
+                .build();
     }
 
-    private CMenderResult mend(String sourceFileCopy) {
+    private SourceResult mend(String sourceFile, MendingDirData mendingDirData/*String sourceFileCopy*/) {
+        String sourceFileCopy = mendingDirData.sourceFileCopyPath();
+
         var mendingTable = new MendingTable();
         var maxTotalIterations = menderInvocation.getMaxTotalIterations();
 
@@ -96,92 +111,84 @@ public class MendingEngine {
         //  3) total time -> maybe not the best approach, because the time can vary a lot depending on the number of diagnostics and the complexity of the mends.
         //      but can also be a more conservative approach (and we can do load tests to find a good estimate.
 
-        var cMenderTimedResult = TimeMeasure.measureElapsed(() -> {
+        var timedSourceResult = TimeMeasure.measureElapsed(() -> {
             var success = false;
             var finished = false;
-            var currentIteration = 0;
+            var currentIteration = 0L;
 
             var diagExporterTotalTime = 0L;
             var mendingTotalTime = 0L;
             var mendfileWritingTotalTime = 0L;
 
-            String unknownDiag = null;
+            Set<String> unknownDiags = new HashSet<>();
+
+            List<SourceIterationResult> iterationResults = new ArrayList<>();
 
             while (!finished && currentIteration++ < maxTotalIterations) {
-                TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(sourceFileCopy);
+                var sourceIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
 
-                diagExporterTotalTime += diagExporterTimedResult.elapsedTime();
-
-                DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
-
-                if (diagExporterResult == null) {
+                if (sourceIterationResult == null) {
+                    // TODO
                     return null;
                 }
 
-                // Because we only process just one file at a time
-                var firstSourceResult = diagExporterResult.sourceResults().getFirst();
+                diagExporterTotalTime += sourceIterationResult.diagExporterTime();
+                mendingTotalTime += sourceIterationResult.mendingTime();
+                mendfileWritingTotalTime += sourceIterationResult.mendfileWritingTime();
 
-                TimedResult<DiagnosticMendResult> mendingTimedResult = processSourceResult(firstSourceResult, mendingTable);
+                success = sourceIterationResult.mendResult().success();
+                finished = success || sourceIterationResult.mendResult().finishedPrematurely(menderInvocation);
 
-                unknownDiag = mendingTimedResult.result().unknownDiag();
+                unknownDiags.addAll(sourceIterationResult.mendResult().unknownDiags());
 
-                mendingTotalTime += mendingTimedResult.elapsedTime();
-
-                DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
-
-                // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
-                // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
-                // iteration
-                //
-                // so far we don't apply mending if we have an unknown diagnostic, but this is also a situation
-                //    where we stop the mending process completely
-                if (diagnosticMendingResult.appliedMend() || !menderInvocation.isCreateMendfileOnlyOnAlterations()) {
-                    long mendfileWritingTime = writeMendfile(mendingTable, sourceFileCopy, currentIteration);
-
-                    mendfileWritingTotalTime += mendfileWritingTime;
-                }
-
-                success = diagnosticMendingResult.success();
-                finished = success || diagnosticMendingResult.finishedPrematurely(menderInvocation);
+                iterationResults.add(sourceIterationResult);
             }
 
-            return CMenderResult.builder()
+            return SourceResult.builder()
                     .success(success)
+                    .iterations(currentIteration - 1)
+                    .unknownDiags(new ArrayList<>(unknownDiags))
+                    .iterationResults(iterationResults)
 
-                    // Total time in NS
+                    // Total times in NS
                     .diagExporterTotalTime(diagExporterTotalTime)
                     .mendingTotalTime(mendingTotalTime)
                     .mendfileWritingTotalTime(mendfileWritingTotalTime)
 
-                    // Total time in MS
+                    // Total times in MS
                     .diagExporterTotalTimeMs(TimeMeasure.milliseconds(diagExporterTotalTime))
                     .mendingTotalTimeMs(TimeMeasure.milliseconds(mendingTotalTime))
                     .mendfileWritingTotalTimeMs(TimeMeasure.milliseconds(mendfileWritingTotalTime))
 
-                    .iterations(currentIteration - 1)
-                    .unknownDiag(unknownDiag) // TODO change when we support tolerance of more than one unknown diag/multiple files
-
                     .build();
         });
 
-        var result = cMenderTimedResult.result();
+        var result = timedSourceResult.result();
 
-        System.out.println(result.success() ? "Code was successfully mended." : "Code was unsuccessfully mended.");
+        if (result == null) {
+            // TODO
+            return null;
+        }
 
-        var totalTime = cMenderTimedResult.elapsedTime();
+        CliReporting.info("Source file '%s' was %s", sourceFileCopy, result.success() ? "successfully mended" : "unsuccessfully mended");
+        Logging.FILE_LOGGER.info("source file '{}' was {}", sourceFileCopy, result.success() ? "successfully mended" : "unsuccessfully mended");
+
+        var totalTime = timedSourceResult.elapsedTime();
 
         long otherTotalTime = totalTime - result.diagExporterTotalTime() - result.mendingTotalTime() - result.mendfileWritingTotalTime();
 
         return result.toBuilder()
-                // Total time in NS
+                .sourceFile(sourceFile)
+
+                // Total times in NS
                 .totalTime(totalTime)
                 .otherTotalTime(otherTotalTime)
 
-                // Total time in MS
+                // Total times in MS
                 .totalTimeMs(TimeMeasure.milliseconds(totalTime))
                 .otherTotalTimeMs(TimeMeasure.milliseconds(otherTotalTime))
 
-                // Percentage of total time
+                // Percentage of total times
                 .diagExporterTotalTimePercentage(TimeMeasure.percentage(totalTime, result.diagExporterTotalTime()))
                 .mendingTotalTimePercentage(TimeMeasure.percentage(totalTime, result.mendingTotalTime()))
                 .mendfileWritingTotalTimePercentage(TimeMeasure.percentage(totalTime, result.mendfileWritingTotalTime()))
@@ -190,32 +197,104 @@ public class MendingEngine {
                 .build();
     }
 
-    private TimedResult<DiagExporterResult> callDiagExporter(String sourceFileCopy) {
+    private SourceIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration, MendingTable mendingTable) {
+        var sourceFileCopy = mendingDirData.sourceFileCopyPath();
+        var timedResult = TimeMeasure.measureElapsed(() -> {
+            long mendfileWritingTime = 0;
+
+            TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData);
+            DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
+
+            if (diagExporterResult == null) {
+                // TODO
+                return null;
+            }
+
+            // Because we only process just one file at a time
+            var firstSourceResult = diagExporterResult.sourceResults().getFirst();
+
+            TimedResult<DiagnosticMendResult> mendingTimedResult = processSourceResult(firstSourceResult, mendingTable, mendingDirData);
+            DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
+
+            // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
+            // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
+            // iteration
+            if (diagnosticMendingResult.appliedMend() || !menderInvocation.isCreateMendfileOnlyOnAlterations()) {
+                mendfileWritingTime = writeMendfile(mendingTable, mendingDirData, currentIteration);
+            }
+
+            return SourceIterationResult.builder()
+                    .mendResult(diagnosticMendingResult)
+
+                    // Iteration times in NS
+                    .diagExporterTime(diagExporterTimedResult.elapsedTime())
+                    .mendingTime(mendingTimedResult.elapsedTime())
+                    .mendfileWritingTime(mendfileWritingTime)
+
+                    // Iteration times in MS
+                    .diagExporterTimeMs(TimeMeasure.milliseconds(diagExporterTimedResult.elapsedTime()))
+                    .mendingTimeMs(TimeMeasure.milliseconds(mendingTimedResult.elapsedTime()))
+                    .mendfileWritingTimeMs(TimeMeasure.milliseconds(mendfileWritingTime))
+
+                    .build();
+        });
+
+        var result = timedResult.result();
+
+        if (result == null) {
+            // TODO
+            return null;
+        }
+
+        var time = timedResult.elapsedTime();
+        var otherTime = time - result.diagExporterTime() -
+                            result.mendingTime() - result.mendfileWritingTime();
+
+        return result.toBuilder()
+                // Iteration times in NS
+                .time(time)
+                .otherTime(otherTime)
+
+                // Iteration times in MS
+                .timeMs(TimeMeasure.milliseconds(time))
+                .otherTimeMs(TimeMeasure.milliseconds(otherTime))
+
+                // Percentage of iteration times
+                .diagExporterTimePercentage(TimeMeasure.percentage(time, result.diagExporterTime()))
+                .mendingTimePercentage(TimeMeasure.percentage(time, result.mendingTime()))
+                .mendfileWritingTimePercentage(TimeMeasure.percentage(time, result.mendfileWritingTime()))
+                .otherTimePercentage(TimeMeasure.percentage(time, otherTime))
+                .build();
+    }
+
+    private TimedResult<DiagExporterResult> callDiagExporter(MendingDirData mendingDirData) {
         return TimeMeasure.measureElapsed(() -> {
             try {
                 return diagExporter.run(
                         DiagExporterInvocation
                                 .builder()
-                                .files(List.of(sourceFileCopy))
+                                .includePaths(List.of(mendingDirData.includePath()))
+                                .files(List.of(mendingDirData.sourceFileCopyPath()))
                                 .outputFilepath("./cmender_diags_output.json") // TODO change name
                                 .build());
             } catch (DiagExporterException e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
-                CliReporting.error("could not export Clang diagnostics from file: '%s'", sourceFileCopy);
+                CliReporting.error("could not export Clang diagnostics from file: '%s'", mendingDirData.sourceFileCopyPath());
                 return null;
             }
         });
     }
 
-    private TimedResult<DiagnosticMendResult> processSourceResult(DiagExporterSingleSourceResult sourceResult, MendingTable mendingTable) {
+    private TimedResult<DiagnosticMendResult> processSourceResult(DiagExporterSingleSourceResult sourceResult, MendingTable mendingTable, MendingDirData mendingDirData) {
         return TimeMeasure.measureElapsed(() -> {
             // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
 
             if (!sourceResult.hasErrors()) {
                 return DiagnosticMendResult.builder()
                         .success(true)
-                        .unknownDiag(null)
+                        .unknownDiags(List.of())
+                        .mendedDiags(List.of())
                         .build();
             }
 
@@ -225,18 +304,25 @@ public class MendingEngine {
 
             System.out.println(firstError);
 
-            switch (DiagnosticID.fromIntID(firstError.id())) {
+            var diagnosticID = DiagnosticID.fromIntID(firstError.id());
+
+            switch (diagnosticID) {
                 case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
                         MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
                 case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
                         MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
                 case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
                         MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->
+                        MendingHandlers.handleErrTypecheckInvalidOperands(firstError, mendingTable);
+                case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->
+                        MendingHandlers.handleErrPPFileNotFound(firstError, mendingTable, mendingDirData);
                 case DiagnosticID.UNKNOWN -> {
                     MendingHandlers.handleUnknown(firstError, mendingTable);
                     return DiagnosticMendResult.builder()
                             .success(false)
-                            .unknownDiag(firstError.description())
+                            .unknownDiags(List.of(firstError.description()))
+                            .mendedDiags(List.of())
                             .build();
                 }
             }
@@ -249,15 +335,18 @@ public class MendingEngine {
             return DiagnosticMendResult.builder()
                     .success(false)
                     .appliedMend(true)
-                    .unknownDiag(null)
+                    .unknownDiags(List.of())
+                    .mendedDiags(List.of(diagnosticID))
                     .build();
         });
     }
 
-    private long writeMendfile(MendingTable table, String sourceFileCopy, long currentIteration) {
+    private long writeMendfile(MendingTable table, MendingDirData mendingDirData, long currentIteration) {
+        var sourceFileCopyPath = mendingDirData.sourceFileCopyPath();
+
         return TimeMeasure.measureElapsed(() -> {
             try {
-                var mendingDirPath = Paths.get(sourceFileCopy).getParent();
+                var mendingDirPath = Paths.get(sourceFileCopyPath).getParent();
 
                 var mendingFile = Paths.get(mendingDirPath.toString(), MENDFILE_FILENAME).toFile();
 
@@ -271,6 +360,8 @@ public class MendingEngine {
                     var copyPath = Paths.get(mendingDirPath.toString(), MENDFILE_NAME + "_" + currentIteration + ".h").toFile();
 
                     Files.copy(mendingFile.toPath(), copyPath.toPath());
+
+                    mendingDirData.mendfileCopyPaths().add(copyPath.getCanonicalPath());
                 }
             } catch (IOException e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);

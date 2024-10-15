@@ -9,7 +9,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -18,17 +20,17 @@ public class CMenderDataManager {
 
     public static final String DATA_DIRPATH;
 
-    public static final String MENDING_DIRPATH;
+    public static final String BASE_MENDING_DIRPATH;
 
     public static final Map<String, String> MENDING_DIRNAMES;
 
     static {
-        DATA_DIRPATH = getCMenderDataDirpath();
-        MENDING_DIRPATH = Paths.get(DATA_DIRPATH, "mending").toString();
+        DATA_DIRPATH = getCMenderDataDirPath();
+        BASE_MENDING_DIRPATH = Paths.get(DATA_DIRPATH, "mending").toString();
         MENDING_DIRNAMES = new HashMap<>();
 
         try {
-            Files.createDirectories(Paths.get(MENDING_DIRPATH));
+            Files.createDirectories(Paths.get(BASE_MENDING_DIRPATH));
 
         } catch (IOException e) {
             CliReporting.error("failed to create data directory: %s", e.getMessage());
@@ -36,7 +38,7 @@ public class CMenderDataManager {
         }
     }
 
-    public static String getCMenderDataDirpath() {
+    public static String getCMenderDataDirPath() {
 
         var os = System.getProperty("os.name").toLowerCase();
         var home = System.getProperty("user.home", "./");
@@ -55,20 +57,25 @@ public class CMenderDataManager {
         return System.getProperty("data.dir", defaultDataPath);
     }
 
-    public static String createMendingDir(String sourceFilePathStr, String mendingDisclaimerInSource, String mendfileName) {
-        var sourceFilePath = Paths.get(sourceFilePathStr);
-        var mendingDirPath = Paths.get(MENDING_DIRPATH, UUID.randomUUID().toString());
+    public static MendingDirData createMendingDir(String sourceFilePathStr, String mendingDisclaimerInSource, String mendfileName) {
+        UUID id = UUID.randomUUID();
+        Path sourceFilePath = Paths.get(sourceFilePathStr);
+        Path mendingDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString());
+        Path includeDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "includes");
 
         try {
             // TODO think of garbage collection of old mending directories (maybe temporary directories?)
             //  also maybe customisation to this behaviour (e.g., keep the last N directories)
             Files.createDirectories(mendingDirPath);
+            Files.createDirectories(includeDirPath);
 
             MENDING_DIRNAMES.put(sourceFilePathStr, mendingDirPath.getFileName().toString());
 
-            var sourceFileCopyPath = mendingDirPath.resolve(sourceFilePath.getFileName());
+            Path sourceFileCopyPath = Paths.get(mendingDirPath.resolve(sourceFilePath.getFileName()).toFile().getCanonicalPath());
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFileCopyPath.toFile()));
+
+            // We dont copy the file because we need to add the disclaimer and the include directive
             BufferedReader reader = new BufferedReader(new FileReader(sourceFilePath.toFile()));
                 writer.write(mendingDisclaimerInSource);
                 writer.newLine();
@@ -85,14 +92,22 @@ public class CMenderDataManager {
             writer.close();
             reader.close();
 
-            // Create the (empty) header file to avoid missing header file error
+            // Create the (empty) header file before any diag-exporter calls (to avoid missing header file error)
             var headerFilePath = mendingDirPath.resolve(mendfileName + ".h");
             writer = new BufferedWriter(new FileWriter(headerFilePath.toFile()));
             writer.flush();
             writer.close();
 
             //return mendingDirPath.toString();
-            return sourceFileCopyPath.toFile().getCanonicalPath();
+            return MendingDirData.builder()
+                    .id(id)
+                    .sourceFilePath(sourceFilePathStr)
+                    .sourceFileCopyPath(sourceFileCopyPath.toFile().getCanonicalPath())
+                    .mendfilePath(headerFilePath.toString())
+                    .mendfileCopyPaths(new ArrayList<>())
+                    .includePath(includeDirPath.toString())
+                    .build();
+            //return sourceFileCopyPath.toFile().getCanonicalPath();
         } catch (IOException e) {
             // TODO this exception in the future should be handled by the caller because we will be handling
             //  multiple files at once and we should not stop the process if one file fails to be copied.
