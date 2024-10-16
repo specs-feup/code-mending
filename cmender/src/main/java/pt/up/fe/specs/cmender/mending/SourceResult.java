@@ -10,9 +10,9 @@ public record SourceResult(
 
         boolean success,
 
-        long iterations
-        ,
-        List<String> unknownDiags,
+        long iterations,
+
+        List<DiagnosticResultInfo> unknownDiags,
 
         List<SourceIterationResult> iterationResults,
 

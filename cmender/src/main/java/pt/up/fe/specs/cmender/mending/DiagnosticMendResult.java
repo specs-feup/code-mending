@@ -3,7 +3,6 @@ package pt.up.fe.specs.cmender.mending;
 import lombok.Builder;
 
 import pt.up.fe.specs.cmender.CMenderInvocation;
-import pt.up.fe.specs.cmender.diag.DiagnosticID;
 
 import java.util.List;
 
@@ -11,8 +10,8 @@ import java.util.List;
 public record DiagnosticMendResult(
         boolean success,
         boolean appliedMend,
-        List<String> unknownDiags,
-        List<DiagnosticID> mendedDiags
+        List<DiagnosticResultInfo> unknownDiags,
+        List<DiagnosticResultInfo> mendedDiags
 ) {
     public boolean finishedPrematurely(CMenderInvocation invocation) {
         return !unknownDiags.isEmpty() && !invocation.isContinueOnUnknownDiagnostic();

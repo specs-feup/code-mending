@@ -34,4 +34,12 @@ public enum DiagnosticID {
     public static DiagnosticID fromIntID(int id) {
         return ID_MAP.getOrDefault(id, UNKNOWN);
     }
+
+    public int getIntID() {
+        return intID;
+    }
+
+    public String getStringID() {
+        return this.name().toLowerCase();
+    }
 }

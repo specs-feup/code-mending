@@ -2,8 +2,11 @@ package pt.up.fe.specs.cmender.mending;
 
 import lombok.Builder;
 
+import java.util.List;
+
 @Builder(toBuilder = true)
 public record SourceIterationResult(
+        List<DiagnosticResultInfo> diags,
         DiagnosticMendResult mendResult,
 
         // Iteration times in NS

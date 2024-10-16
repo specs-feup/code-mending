@@ -24,7 +24,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class MendingEngine {
     private static final String MENDING_DISCLAIMER_IN_SOURCE = """
@@ -120,7 +119,8 @@ public class MendingEngine {
             var mendingTotalTime = 0L;
             var mendfileWritingTotalTime = 0L;
 
-            Set<String> unknownDiags = new HashSet<>();
+
+            List<DiagnosticResultInfo> unknownDiags = new ArrayList<>();
 
             List<SourceIterationResult> iterationResults = new ArrayList<>();
 
@@ -213,7 +213,7 @@ public class MendingEngine {
             // Because we only process just one file at a time
             var firstSourceResult = diagExporterResult.sourceResults().getFirst();
 
-            TimedResult<DiagnosticMendResult> mendingTimedResult = processSourceResult(firstSourceResult, mendingTable, mendingDirData);
+            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData);
             DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
 
             // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
@@ -224,6 +224,8 @@ public class MendingEngine {
             }
 
             return SourceIterationResult.builder()
+                    .diags(firstSourceResult.diags().stream().map(diag ->
+                            new DiagnosticResultInfo(DiagnosticID.fromIntID(diag.id()).getStringID(), diag.message().text())).toList())
                     .mendResult(diagnosticMendingResult)
 
                     // Iteration times in NS
@@ -286,7 +288,7 @@ public class MendingEngine {
         });
     }
 
-    private TimedResult<DiagnosticMendResult> processSourceResult(DiagExporterSingleSourceResult sourceResult, MendingTable mendingTable, MendingDirData mendingDirData) {
+    private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(DiagExporterSingleSourceResult sourceResult, MendingTable mendingTable, MendingDirData mendingDirData) {
         return TimeMeasure.measureElapsed(() -> {
             // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
 
@@ -321,7 +323,7 @@ public class MendingEngine {
                     MendingHandlers.handleUnknown(firstError, mendingTable);
                     return DiagnosticMendResult.builder()
                             .success(false)
-                            .unknownDiags(List.of(firstError.description()))
+                            .unknownDiags(List.of(new DiagnosticResultInfo(diagnosticID.getStringID(), firstError.message().text())))
                             .mendedDiags(List.of())
                             .build();
                 }
@@ -336,7 +338,7 @@ public class MendingEngine {
                     .success(false)
                     .appliedMend(true)
                     .unknownDiags(List.of())
-                    .mendedDiags(List.of(diagnosticID))
+                    .mendedDiags(List.of(new DiagnosticResultInfo(diagnosticID.getStringID(), firstError.message().text())))
                     .build();
         });
     }
