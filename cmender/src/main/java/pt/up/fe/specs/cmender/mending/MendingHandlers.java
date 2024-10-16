@@ -135,6 +135,26 @@ public class MendingHandlers {
     }
 
    public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
+       System.out.println("File not found");
+
+       var includePath = mendingDirData.includePath();
+
+
+       try {
+           var stdStringArg = (StdStringArg) diag.message().args().getFirst();
+
+           var headerFilePath = Paths.get(includePath, stdStringArg.string());
+
+           Files.createDirectories(headerFilePath.getParent());
+
+           Files.createFile(headerFilePath);
+       } catch (Exception e) {
+           CliReporting.error("Failed to handle file not found: " + e.getMessage());
+           Logging.FILE_LOGGER.error("Failed to handle file not found: {}", e.getMessage());
+       }
+
+       // TODO we can try to find the file in the include paths and add it to the mending table
+
    }
 
 
