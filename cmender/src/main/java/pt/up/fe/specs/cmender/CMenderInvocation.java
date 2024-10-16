@@ -40,6 +40,9 @@ public class CMenderInvocation {
     @Builder.Default
     private boolean continueOnUnknownDiagnostic = false;
 
+    @Builder.Default
+    private String output = "./output";
+
     // TODO: Add support for mending in place (i.e., declarations on the source file)
     /*@Builder.Default
     private boolean mendingInPlace = false;*/
