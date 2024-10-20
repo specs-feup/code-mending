@@ -175,7 +175,14 @@ ordered_json QualTypeJsonConverter::convertQualTypeToJson(const clang::QualType 
     const auto canonicalQualType = qualType.getCanonicalType();
 
     if (const auto trackedType = lookupTrackedTypes(canonicalQualType); trackedType != nullptr) {
-        return *trackedType;
+        return ordered_json::object({
+            {"typeAsString", qualType.getAsString()},
+            {"canonicalTypeAsString", canonicalQualType.getAsString()},
+            {"typeUsageInDecls", getTypeUsageInDecls(canonicalQualType)},
+            {"qual", convertQualifiersToJson(canonicalQualType.getQualifiers())},
+            {"type", *trackedType},
+            {"langAddressSpace", convertAddressSpaceToJson(canonicalQualType.getAddressSpace())}
+        });
     }
 
     return ordered_json::object({
