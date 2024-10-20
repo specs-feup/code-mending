@@ -36,30 +36,46 @@ public class MendingTable {
 
     private final Map<String, EnumSymbol> enums;
 
+    // TODO is this necessary? we can just use the typedefs map to change the aliased type
+    private final Map<String, Symbol> typeNameToCorrespondingSymbol;
+
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
         typedefs = new HashMap<>();
         structs = new HashMap<>();
         enums = new HashMap<>();
+        typeNameToCorrespondingSymbol = new HashMap<>();
     }
 
-    public void add(VariableSymbol variable) {
+    public void put(VariableSymbol variable) {
         variables.put(variable.name(), variable);
     }
 
-    public void add(FunctionSymbol function) {
+    public void put(FunctionSymbol function) {
         functions.put(function.name(), function);
     }
 
-    public void add(TypedefSymbol typedef) {
+    public void put(TypedefSymbol typedef) {
         typedefs.put(typedef.name(), typedef);
     }
 
-    public void add(RecordSymbol struct) {
+    public void put(RecordSymbol struct) {
         structs.put(struct.name(), struct);
     }
 
+    public void put(EnumSymbol enumSymbol) {
+        enums.put(enumSymbol.name(), enumSymbol);
+    }
+
+    public void putTypeNameMapping(String typeName, Symbol symbol) {
+        typeNameToCorrespondingSymbol.put(typeName, symbol);
+    }
+
+    // TODO we will also require symbols here which are already declared in the code
+    //   Because if our controlled types depend on those we will need to forward declare them first
+    //   since the include of the mendfile will be expanded at the top of the file and will not be able
+    //   to see the declarations
     // Functions and variables are not included in the dependencies because
     // they do not declare symbols that structs and typedefs use in their definitions
     public Map<Symbol, Set<Symbol>> buildDependencyGraph() {
@@ -157,6 +173,10 @@ public class MendingTable {
         temporarilyVisited.add(symbol);
 
         for (var dep : depGraph.get(symbol)) {
+            if (symbol instanceof TypedefSymbol && dep instanceof TypedefSymbol && symbol.name().equals(dep.name())) {
+                continue;
+            }
+
             /*if (symbol instanceof Struct && depGraph.get(symbol).contains(symbol)) {
                 continue;
             }*/
@@ -177,12 +197,14 @@ public class MendingTable {
         for (var symbol : symbols) {
             writer.write(symbol.asDeclarationString());
             writer.newLine();
+            writer.newLine();
         }
     }
 
     private void writeDefs(BufferedWriter writer, List<Symbol> symbols) throws IOException {
         for (var symbol : symbols) {
             writer.write(symbol.asDefinitionString());
+            writer.newLine();
             writer.newLine();
         }
     }

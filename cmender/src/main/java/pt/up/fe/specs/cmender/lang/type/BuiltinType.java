@@ -70,6 +70,11 @@ public record BuiltinType(
     }
 
     @Override
+    public boolean isNumericType() {
+        return isIntegralType() || isFloatingPointType();
+    }
+
+    @Override
     public boolean isIntegralType() {
         return builtinKind == BuiltinKind.CHAR || builtinKind == BuiltinKind.SHORT
                 || builtinKind == BuiltinKind.INT || builtinKind == BuiltinKind.LONG;

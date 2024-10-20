@@ -1,6 +1,7 @@
 package pt.up.fe.specs.cmender.lang.symbol;
 
 import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.List;
@@ -8,20 +9,20 @@ import java.util.Set;
 
 public class TypedefSymbol extends Symbol {
 
-    private QualType qualType;
+    private TypedefType typedefType;
 
-    public TypedefSymbol(String name, QualType qualType) {
+    public TypedefSymbol(String name, TypedefType typedefType) {
         super(name);
-        this.qualType = qualType;
+        this.typedefType = typedefType;
     }
 
-    public void setType(QualType qualType) {
-        this.qualType = qualType;
+    public void setAliasedType(QualType qualType) {
+        typedefType.setAliasedType(qualType);
     }
 
     @Override
     public String asDeclarationString() {
-        return "typedef " + qualType.substituteTypeUsageId(name) + ";";
+        return "typedef " + typedefType.aliasedType().substituteTypeUsageId(name) + ";";
     }
 
     @Override
@@ -31,7 +32,7 @@ public class TypedefSymbol extends Symbol {
 
     @Override
     public Set<Symbol> getDirectDependencies(MendingTable table) {
-        return qualType.getDirectDependencies(table);
+        return typedefType.getDirectDependencies(table);
     }
 
     @Override

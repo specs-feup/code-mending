@@ -5,6 +5,7 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.List;
@@ -15,17 +16,17 @@ import java.util.Set;
 @Accessors(fluent = true)
 public class VariableSymbol extends Symbol {
 
-    private QualType qualType;
+    private final TypedefType type;
 
     // This is the only constructor that should be used because we should always set an initial type
-    //  A variable without a type does not make sense
-    public VariableSymbol(String name, QualType type) {
+    // A variable without a type does not make sense
+    public VariableSymbol(String name, TypedefType type) {
         super(name);
-        this.qualType = type;
+        this.type = type;
     }
 
-    public void setQualType(QualType qualType) {
-        this.qualType = qualType;
+    public void setType(QualType qualType) {
+        type.setAliasedType(qualType);
     }
 
     @Override
@@ -35,16 +36,17 @@ public class VariableSymbol extends Symbol {
 
     @Override
     public String asDefinitionString() {
-        return qualType.substituteTypeUsageId(name) + ";";
+        return type.name() + " " + name() + ";";
+        //return type.aliasedType().substituteTypeUsageId(name) + ";";
     }
 
     @Override
     public Set<Symbol> getDirectDependencies(MendingTable table) {
-        return qualType.getDirectDependencies(table);
+        return type.getDirectDependencies(table);
     }
 
     @Override
     public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
-        qualType.addDirectDependencies(dependencies, table);
+        type.addDirectDependencies(dependencies, table);
     }
 }

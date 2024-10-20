@@ -3,6 +3,7 @@ package pt.up.fe.specs.cmender.lang.symbol;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.ArrayList;

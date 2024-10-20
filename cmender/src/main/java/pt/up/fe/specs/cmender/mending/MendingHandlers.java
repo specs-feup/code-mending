@@ -3,57 +3,42 @@ package pt.up.fe.specs.cmender.mending;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.MendingDirData;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
+import pt.up.fe.specs.cmender.diag.args.DeclContextArg;
 import pt.up.fe.specs.cmender.diag.args.DeclarationNameArg;
+import pt.up.fe.specs.cmender.diag.args.DiagnosticArgKind;
 import pt.up.fe.specs.cmender.diag.args.IdentifierArg;
+import pt.up.fe.specs.cmender.diag.args.QualTypeArg;
 import pt.up.fe.specs.cmender.diag.args.StdStringArg;
+import pt.up.fe.specs.cmender.lang.declContext.RecordDecl;
+import pt.up.fe.specs.cmender.lang.symbol.EnumSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.FunctionSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
+import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
+import pt.up.fe.specs.cmender.lang.type.BuiltinType;
+import pt.up.fe.specs.cmender.lang.type.EnumType;
 import pt.up.fe.specs.cmender.lang.type.QualType;
 import pt.up.fe.specs.cmender.lang.type.Qualifiers;
 import pt.up.fe.specs.cmender.lang.type.RecordType;
+import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.logging.Logging;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+// TODO delete all types that arent being used (should only be deleted if there are no usages of it)
+
 public class MendingHandlers {
 
-    private static final String UNNAMED_SYMBOL_NAME_PREFIX = "cmender_unnamed_symbol_";
-
-    private static int unnamedSymbolCounter = 0;
-
-    private static String newName() {
-        return UNNAMED_SYMBOL_NAME_PREFIX + unnamedSymbolCounter++;
-    }
-
-    // When we don't know a symbol's type, we create a new unnamed type (mock type), which will be replaced later
+    // When we don't know a symbol's type, we create a new starting type (mock type), which will be replaced later
+    //    when we get more information about the symbol from the diagnostics
     // This mock type is a struct with no fields because it will be more likely to be replaced by a real type
-    //   than a type like int or float, which get easily converted to other numeric types, changing some
-    //   semantics of the original program
-    // TODO should we also use a typedef to reference this struct?
-    private static QualType createNewUnnamedStartingQualType(MendingTable mendingTable) {
-        var structSymbol = new RecordSymbol(newName());
+    //    than a type like int or float, which get easily converted to other numeric types, changing some
+    //    semantics of the original program
+    // This struct will be typedef'd to a unique name for each symbol (i.e., for each variable, function, struct member)
+    //      This way, we can easily replace the type of the symbol in the code by only looking at the diagnostic messages
+    //       with type mismatch information
 
-        //var structType = new RecordType(structSymbol.name(), RecordType.RecordKind.STRUCT, structSymbol);
-        var structType = new RecordType(structSymbol.name(), RecordType.RecordKind.STRUCT);
-
-        var qualType = new QualType(
-                "struct " + structSymbol.name(),
-                "struct " + structSymbol.name(),
-                "struct " + structSymbol.name() + " diag_exporter_id",
-                Qualifiers.unqualified(),
-                structType,
-                null
-        );
-
-        mendingTable.structs().put(structSymbol.name(), structSymbol);
-
-        return qualType;
-        //var typedef = new TypedefSymbol(newName(), qualType);
-        //mendingTable.typedefs().put(typedef.name(), typedef);
-        //return typedef;
-    }
 
     // TODO find if we can have the handlers as objects (also they can be placed in the enum DiagnosticID)
     //  or in terms of performance it is better to have them as static methods
@@ -62,83 +47,193 @@ public class MendingHandlers {
 
         var functionName = ((IdentifierArg) diag.message().args().getFirst()).name();
 
-        var function = new FunctionSymbol(functionName);
+        var returnQualType = new QualType(
+                "void",
+                "void",
+                "void diag_exporter_id",
+                Qualifiers.unqualified(),
+                new BuiltinType(BuiltinType.BuiltinKind.VOID, "void"),
+                null);
 
-        mendingTable.functions().put(functionName, function);
+        // typedef void cmender_type_0; is valid C code, so we can add the typedef of a void to the mending table
+        var typedefType = new TypedefType(MendingTypeNameGenerator.newTypeName(), returnQualType);
+
+        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
+
+        var function = new FunctionSymbol(functionName, typedefType);
+
+        mendingTable.put(typedefSymbol);
+        mendingTable.put(function);
+        mendingTable.putTypeNameMapping(typedefType.name(), function);
     }
 
     public static void handleErrUndeclaredVarUse(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Undeclared variable use");
+        // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
 
-        var varName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+        /*var codeSnippet = diag.codeSnippet();
 
-        var variable = new VariableSymbol(varName, createNewUnnamedStartingQualType(mendingTable));
+        var identifier = ((DeclarationNameArg) diag.message().args().getFirst()).name();
 
-        mendingTable.variables().put(varName, variable);
+        var afterIdentifier = codeSnippet.substring(codeSnippet.indexOf(identifier) + identifier.length());
+
+        for (var c : afterIdentifier.toCharArray()) {
+            if (Character.isWhitespace(c)) {
+                continue;
+            }
+
+            if (c == ',' || c == ';' || c == '=') {
+                declareVar(diag, mendingTable);
+            }
+
+        }
+
+        declareTypedef(diag, mendingTable);*/
+
+        declareVar(diag, mendingTable);
+
+    }
+
+    public static void handleErrUndeclaredVarUseSuggest(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("Undeclared variable use with suggestion");
+        // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
+        declareVar(diag, mendingTable);
     }
 
     public static void handleErrTypecheckConvertIncompatible(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Incompatible type conversion");
 
-        var sourceRanges = diag.sourceRanges();
+        var lhsQualTypeArgOptional = diag.message().args().stream().filter(
+                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
+        ).findFirst();
 
+        var rhsQualTypeArgOptional = diag.message().args().stream().filter(
+                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
+        ).skip(1).findFirst();
 
+        if (lhsQualTypeArgOptional.isEmpty() || rhsQualTypeArgOptional.isEmpty()) {
+            CliReporting.error("Could not find QualType arguments for incompatible type conversion");
+            Logging.FILE_LOGGER.error("Could not find QualType arguments for incompatible type conversion");
+            return;
+        }
 
-        /*sourceRanges.stream().filter(
-                sourceRange -> {
-                    var functionPattern = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(");
-                    var matcher = functionPattern.matcher(sourceRange.);
+        // lhs is the type of the variable being initialized, rhs is the type of the expression
+        var lhsQualType = ((QualTypeArg) lhsQualTypeArgOptional.get()).qualType();
+        var rhsQualType = ((QualTypeArg) rhsQualTypeArgOptional.get()).qualType();
 
-                }
-        )*/
+        // We need to find which side is the one we need to change
+        //   1) if one of the sides has a type we don't control, we change the other side
+        //   2) if both sides have types we control, we change the lhs (TODO is there a situation this can go in loop?)
+        //  TODO is there a situation where there is a side with types we can control but still havent declared?
+        //     perhaps not because Clang might need to have all variables with types declared before the conversion
 
-        /*var codeSnippet = diag.codeSnippet();
+        QualType qualTypeToBeChanged;
+        QualType qualTypeToBeKept;
+
+        boolean lhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(lhsQualType.typeAsString());
+        boolean rhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(rhsQualType.typeAsString());
+
+        if (lhsIsGenerated && !rhsIsGenerated) {
+            qualTypeToBeChanged = lhsQualType;
+            qualTypeToBeKept = rhsQualType;
+        } else if (!lhsIsGenerated && rhsIsGenerated) {
+            qualTypeToBeChanged = rhsQualType;
+            qualTypeToBeKept = lhsQualType;
+        } else if (lhsIsGenerated && rhsIsGenerated) {
+            qualTypeToBeChanged = lhsQualType;
+            qualTypeToBeKept = rhsQualType;
+        } else {
+            CliReporting.error("Both sides of the incompatible type conversion have types we dont control");
+            Logging.FILE_LOGGER.error("Both sides of the incompatible type conversion have types we dont control");
+            return;
+        }
+
+        var typedefSymbol = mendingTable.typedefs().get(qualTypeToBeChanged.typeAsString());
+
+        typedefSymbol.setAliasedType(qualTypeToBeKept);
 
         // TODO for now we assume the lhs is a variable, but it can also be e.g., a struct member
-        var equalsLhs = codeSnippet.substring(0, codeSnippet.indexOf("=")).trim();
-        var equalsRhs = codeSnippet.substring(codeSnippet.indexOf("=") + 1).trim();
-
         // For now we assume that the file has no comments, so we can just take the last word
         // TODO We also assume that only one declarator is present in the lhs
         // to be able to find the variable name and ignore statements before the variable name that might be in the same line (unlikely)
-        var equalsLhsReverse = new StringBuilder(equalsLhs).reverse().toString();
-
-        var varNameBuilder = new StringBuilder();
-
-        for (var c : equalsLhsReverse.toCharArray()) {
-            if (Character.isLetterOrDigit(c) || c == '_') {
-                varNameBuilder.append(c);
-            } else {
-                break;
-            }
-        }
-
-        var varName = varNameBuilder.reverse().toString();
-
-        System.out.println("Variable name: " + varName);
-
-        var variable = mendingTable.variables().get(varName);
-
-        var qualTypeArgs = diag.message().args().stream().filter(
-                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
-        ).toList();
-
-        assert qualTypeArgs.size() == 2;
-
-        var correctQualTypeArg = (QualTypeArg) qualTypeArgs.get(1); // first is the wrong, second is the correct
-
-        variable.setQualType(correctQualTypeArg.qualType());
-        // TODO delete (should only be deleted if there are no usages of it)*/
     }
 
     public static void handleErrTypecheckInvalidOperands(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("Invalid operands");
+
+        var lhsQualTypeArgOptional = diag.message().args().stream().filter(
+                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
+        ).findFirst();
+
+        var rhsQualTypeArgOptional = diag.message().args().stream().filter(
+                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
+        ).skip(1).findFirst();
+
+        if (lhsQualTypeArgOptional.isEmpty() || rhsQualTypeArgOptional.isEmpty()) {
+            CliReporting.error("Could not find QualType arguments for invalid operands");
+            Logging.FILE_LOGGER.error("Could not find QualType arguments for invalid operands");
+            return;
+        }
+
+        var lhsQualType = ((QualTypeArg) lhsQualTypeArgOptional.get()).qualType();
+        var rhsQualType = ((QualTypeArg) rhsQualTypeArgOptional.get()).qualType();
+
+
+        QualType qualTypeToBeChanged;
+        QualType qualTypeToBeKept;
+
+        boolean lhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(lhsQualType.typeAsString());
+        boolean rhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(rhsQualType.typeAsString());
+
+        if (lhsIsGenerated && !rhsIsGenerated) {
+            qualTypeToBeChanged = lhsQualType;
+            qualTypeToBeKept = rhsQualType;
+        } else if (!lhsIsGenerated && rhsIsGenerated) {
+            qualTypeToBeChanged = rhsQualType;
+            qualTypeToBeKept = lhsQualType;
+        } else if (lhsIsGenerated && rhsIsGenerated) {
+            // TODO for now assume that it's only number operands, and not _Bool operands
+
+            if (!lhsQualType.type().isNumericType()) {
+                var typedefSymbol = mendingTable.typedefs().get(lhsQualType.typeAsString());
+
+                typedefSymbol.setAliasedType(new QualType(
+                        "int",
+                        "int",
+                        "int diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                        null));
+            }
+
+            if (!rhsQualType.type().isNumericType()) {
+                var typedefSymbol = mendingTable.typedefs().get(rhsQualType.typeAsString());
+
+                typedefSymbol.setAliasedType(new QualType(
+                        "int",
+                        "int",
+                        "int diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                        null));
+            }
+
+            return;
+        } else {
+            CliReporting.error("Both sides of the invalid operands have types we dont control");
+            Logging.FILE_LOGGER.error("Both sides of the invalid operands have types we dont control");
+            return;
+        }
+
+        var typedefSymbol = mendingTable.typedefs().get(qualTypeToBeChanged.typeAsString());
+
+        typedefSymbol.setAliasedType(qualTypeToBeKept);
     }
 
    public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
        System.out.println("File not found");
 
        var includePath = mendingDirData.includePath();
-
 
        try {
            var stdStringArg = (StdStringArg) diag.message().args().getFirst();
@@ -157,9 +252,149 @@ public class MendingHandlers {
 
    }
 
+   public static void handleErrTypecheckDeclIncompleteType(Diagnostic diag, MendingTable mendingTable) {
+       System.out.println("Incomplete type declaration");
+
+       // Most certainly this diagnostic only happens if the type is one whose name we dont control
+       //  but have to declare it to be able to use it in the code
+       var qualTypeArgOptional = diag.message().args().stream().filter(
+               arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
+       ).findFirst();
+
+       if (qualTypeArgOptional.isEmpty()) {
+           CliReporting.error("Could not find QualType argument for incomplete type declaration");
+           Logging.FILE_LOGGER.error("Could not find QualType argument for incomplete type declaration");
+           return;
+       }
+
+       var qualType = ((QualTypeArg) qualTypeArgOptional.get()).qualType();
+
+       if (qualType.type().isRecordType()) {
+          var recordType = (RecordType) qualType.type();
+
+          var recordSymbol = new RecordSymbol(recordType.name());
+
+          mendingTable.put(recordSymbol);
+       } else if (qualType.type().isEnumType()) {
+              var enumType = (EnumType) qualType.type();
+
+              var enumSymbol = new EnumSymbol(enumType.name());
+
+              mendingTable.put(enumSymbol);
+       } else {
+           CliReporting.error("Incomplete type declaration for non-record and non-enum type");
+           Logging.FILE_LOGGER.error("Incomplete type declaration for non-record and non-enum type");
+       }
+   }
+
+   public static void handleErrNoMember(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("No member");
+
+        var memberName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+
+        var declContextArg = diag.message().args().stream().filter(
+                arg -> arg.kind() == DiagnosticArgKind.DECL_CONTEXT
+        ).findFirst();
+
+        if (declContextArg.isEmpty()) {
+            CliReporting.error("Could not find decl context argument for no member diagnostic");
+            Logging.FILE_LOGGER.error("Could not find decl context argument for no member diagnostic");
+            return;
+        }
+
+        var declContext = ((DeclContextArg) declContextArg.get()).declContext();
+
+        switch (declContext.kind()) {
+            case RECORD:
+                var recordDeclContext = (RecordDecl) declContext;
+
+                if (recordDeclContext.tagKind() != RecordType.RecordKind.STRUCT) {
+                    CliReporting.error("No member diagnostic for non-struct record");
+                    Logging.FILE_LOGGER.error("No member diagnostic for non-struct record");
+                    return;
+                }
+
+                var recordSymbol = mendingTable.structs().get(recordDeclContext.name());
+
+                if (recordSymbol == null) {
+                    CliReporting.error("No member diagnostic for undeclared struct");
+                    Logging.FILE_LOGGER.error("No member diagnostic for undeclared struct");
+                    return;
+                }
+
+                var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
+                var structSymbol = new RecordSymbol(structType.name());
+
+                var typedefType = new TypedefType(MendingTypeNameGenerator.newTypeName(), new QualType(
+                        "struct " + structType.name(),
+                        "struct " + structType.name(),
+                        "struct " + structType.name() + " diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        structType,
+                        null));
+
+                var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
+
+                var member = new RecordSymbol.Member(memberName, typedefType);
+                mendingTable.put(structSymbol);
+                mendingTable.put(typedefSymbol);
+                mendingTable.putTypeNameMapping(typedefType.name(), member);
+                recordSymbol.addMember(member);
+
+                break;
+            default: {
+                return;
+            }
+        }
+   }
 
     public static void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
         CliReporting.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
         Logging.FILE_LOGGER.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
+    }
+
+
+    public static void declareVar(Diagnostic diag, MendingTable mendingTable) {
+        var varName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+
+        var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
+        var structSymbol = new RecordSymbol(structType.name());
+
+        var typedefType = new TypedefType(MendingTypeNameGenerator.newTypeName(), new QualType(
+                "struct " + structType.name(),
+                "struct " + structType.name(),
+                "struct " + structType.name() + " diag_exporter_id",
+                Qualifiers.unqualified(),
+                structType,
+                null));
+
+        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
+
+        var variable = new VariableSymbol(varName, typedefType);
+
+        mendingTable.put(structSymbol);
+        mendingTable.put(typedefSymbol);
+        mendingTable.put(variable);
+        mendingTable.putTypeNameMapping(typedefType.name(), variable);
+    }
+
+    public static void declareTypedef(Diagnostic diag, MendingTable mendingTable) {
+        var typedefName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+
+        var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
+        var structSymbol = new RecordSymbol(structType.name());
+
+        var typedefType = new TypedefType(typedefName, new QualType(
+                "struct " + structType.name(),
+                "struct " + structType.name(),
+                "struct " + structType.name() + " diag_exporter_id",
+                Qualifiers.unqualified(),
+                structType,
+                null));
+
+        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
+
+        mendingTable.put(structSymbol);
+        mendingTable.put(typedefSymbol);
     }
 }

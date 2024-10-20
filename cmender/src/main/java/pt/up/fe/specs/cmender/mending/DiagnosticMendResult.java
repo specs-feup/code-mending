@@ -13,6 +13,8 @@ public record DiagnosticMendResult(
         List<DiagnosticResultInfo> unknownDiags,
         List<DiagnosticResultInfo> mendedDiags
 ) {
+    // TODO isContinueOnUnknownDiagnostic must also make it so you skip the unknown diagnostics
+    //   or else it will just keep trying to mend the same unknown diagnostic
     public boolean finishedPrematurely(CMenderInvocation invocation) {
         return !unknownDiags.isEmpty() && !invocation.isContinueOnUnknownDiagnostic();
     }

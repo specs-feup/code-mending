@@ -3,8 +3,9 @@ package pt.up.fe.specs.cmender.lang.symbol;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
-import pt.up.fe.specs.cmender.lang.type.BuiltinType;
+
 import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.ArrayList;
@@ -18,20 +19,21 @@ import java.util.stream.Collectors;
 @Accessors(fluent = true)
 public class FunctionSymbol extends Symbol {
 
-    private QualType returnType;
+    private final TypedefType returnType;
 
     private List<Parameter> parameters;
 
-    public FunctionSymbol(String name, QualType returnType, List<Parameter> parameters) {
+    public FunctionSymbol(String name, TypedefType returnType, List<Parameter> parameters) {
         super(name);
         this.returnType = returnType;
         this.parameters = new ArrayList<>(parameters);
     }
 
-    public FunctionSymbol(String name, QualType returnType) {
+    public FunctionSymbol(String name, TypedefType returnType) {
         this(name, returnType, new ArrayList<>());
     }
 
+    /*
     public FunctionSymbol(String name) {
         this(name, new QualType(
                 "void",
@@ -41,9 +43,10 @@ public class FunctionSymbol extends Symbol {
                 new BuiltinType(BuiltinType.BuiltinKind.VOID, "void"),
                 null));
     }
+    */
 
     public void setReturnType(QualType returnType) {
-        this.returnType = returnType;
+        this.returnType.setAliasedType(returnType);
     }
 
     public void addParameter(Parameter parameter) {
@@ -59,15 +62,15 @@ public class FunctionSymbol extends Symbol {
     @Accessors(fluent = true)
     public static class Parameter extends Symbol {
 
-        private QualType qualType;
+        private final TypedefType type;
 
-        public Parameter(String name, QualType qualType) {
+        public Parameter(String name, TypedefType type) {
             super(name);
-            this.qualType = qualType;
+            this.type = type;
         }
 
         public void setType(QualType qualType) {
-            this.qualType = qualType;
+            type.setAliasedType(qualType);
         }
 
         @Override
@@ -77,19 +80,19 @@ public class FunctionSymbol extends Symbol {
 
         @Override
         public String asDefinitionString() {
-            return qualType.substituteTypeUsageId(name);
+            return type.aliasedType().substituteTypeUsageId(name);
         }
 
         @Override
         public Set<Symbol> getDirectDependencies(MendingTable table) {
             var dependencies = new ArrayList<Symbol>();
-            qualType.addDirectDependencies(dependencies, table);
+            type.addDirectDependencies(dependencies, table);
             return new HashSet<>(dependencies);
         }
 
         @Override
         public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
-            qualType.addDirectDependencies(dependencies, table);
+            type.addDirectDependencies(dependencies, table);
         }
     }
 
@@ -100,13 +103,23 @@ public class FunctionSymbol extends Symbol {
         //  function returning a function ptr syntax:
         //      int (*func(char op))(int, int);
 
+        return returnType.name() + " " + name + "(" +
+                parameters.stream()
+                        .map(Parameter::asDefinitionString)
+                        .collect(Collectors.joining(",")) +
+                ");";
+        /*
+
         var usageReplacement = name + "(" +
                 parameters.stream()
                         .map(Parameter::asDefinitionString)
                         .collect(Collectors.joining(",")) +
                 ")";
 
-        return returnType.substituteTypeUsageId(usageReplacement) + ";";
+        return returnType.aliasedType().substituteTypeUsageId(usageReplacement) + ";";
+        */
+
+
         /*return returnType.canonicalTypeAsString() + " " + name + "(" +
                 parameters.stream()
                         .map(Parameter::asDefinitionString)
@@ -121,14 +134,23 @@ public class FunctionSymbol extends Symbol {
         //  function returning a function ptr syntax:
         //      int (*func(char op))(int, int);
 
+        return returnType.name() + " " + name + "(" +
+                parameters.stream()
+                        .map(Parameter::asDefinitionString)
+                        .collect(Collectors.joining(",")) +
+                ") " + (body.isEmpty() ? "{}" : "{\n" + body + "\n}");
+        /*
+
         var usageReplacement = name + "(" +
                 parameters.stream()
                         .map(Parameter::asDefinitionString)
                         .collect(Collectors.joining(",")) +
                 ")";
 
-        return returnType.substituteTypeUsageId(usageReplacement)
+        return returnType.aliasedType().substituteTypeUsageId(usageReplacement)
                 + " " + (body.isEmpty() ? "{}" : "{\n" + body + "\n}");
+       */
+
 
         /*return returnType.canonicalTypeAsString() + " " + name + "(" +
                 parameters.stream()
@@ -141,30 +163,30 @@ public class FunctionSymbol extends Symbol {
     // Returning arrays should not be supported
     //    they decay to pointer to a stack-allocated mem region)
     private String getBody() {
-        if (returnType.type().isIntegralType()) {
-            return "return 0;";
+        if (returnType.aliasedType().type().isIntegralType()) {
+            return "\treturn 0;";
         }
 
-        if (returnType.type().isFloatingPointType()) {
-            return "return 0.0;";
+        if (returnType.aliasedType().type().isFloatingPointType()) {
+            return "\treturn 0.0;";
         }
 
-        if (returnType.type().isBooleanType()) {
-            return "return 1;";
+        if (returnType.aliasedType().type().isBooleanType()) {
+            return "\treturn 1;";
         }
 
-        if (returnType.type().isVoid()) {
+        if (returnType.aliasedType().type().isVoid()) {
             return "";
         }
 
         // if the return type is not a void* this still works because of casting
-        if (returnType.type().isPointerType()) {
-            return "return (void *)0;";
+        if (returnType.aliasedType().type().isPointerType()) {
+            return "\treturn (void *)0;";
         }
 
         var ret = new VariableSymbol("ret", returnType);
 
-        return ret.asDefinitionString() + "\n" + "return ret;";
+        return "\t" + ret.asDefinitionString() + "\n" + "\treturn ret;";
     }
 
     @Override

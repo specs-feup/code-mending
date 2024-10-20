@@ -32,6 +32,10 @@ public interface Type extends SymbolDependency {
         return false;
     }
 
+    default boolean isNumericType() {
+        return false;
+    }
+
     default boolean isIntegralType() {
         return false;
     }

@@ -6,5 +6,5 @@ public enum TypeKind {
     ARRAY,
     RECORD,
     ENUM,
-    FUNCTION
+    TYPEDEF, FUNCTION
 }

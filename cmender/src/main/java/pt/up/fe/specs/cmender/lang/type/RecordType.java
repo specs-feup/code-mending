@@ -80,6 +80,7 @@ public class RecordType implements Type {
     public Set<Symbol> getDirectDependencies(MendingTable table) {
         var recordSymbol = table.structs().get(name);
 
+        // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
         if (recordSymbol == null) {
             return new HashSet<>();
         }
@@ -96,6 +97,7 @@ public class RecordType implements Type {
     public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
         var recordSymbol = table.structs().get(name);
 
+        // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
         if (recordSymbol == null) {
             return;
         }

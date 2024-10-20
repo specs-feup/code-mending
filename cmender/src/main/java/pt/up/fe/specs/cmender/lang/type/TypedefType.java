@@ -12,62 +12,47 @@ import java.util.Set;
 
 @Getter
 @Accessors(fluent = true)
-public class EnumType implements Type {
+public class TypedefType implements Type {
 
     private final String name;
 
-    // Reference to the symbol that represents this enum type
-    // private EnumSymbol enumSymbol;
+    private QualType aliasedType;
 
-    public EnumType(String name) {
+    public TypedefType(String name, QualType aliasedType) {
         this.name = name;
+        this.aliasedType = aliasedType;
     }
 
-    /*public void setRecordSymbol(EnumSymbol enumSymbol) {
-        this.enumSymbol = enumSymbol;
-    }*/
+    public void setAliasedType(QualType qualType) {
+        this.aliasedType = qualType;
+    }
 
     @Override
     public TypeKind kind() {
-        return TypeKind.ENUM;
-    }
-
-    @Override
-    public boolean isDerivedType() {
-        return true;
-    }
-
-    @Override
-    public boolean isTagType() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnumType() {
-        return true;
+        return TypeKind.TYPEDEF;
     }
 
     @Override
     public Set<Symbol> getDirectDependencies(MendingTable table) {
-        var enumSymbol = table.enums().get(name);
+        var typedefSymbol = table.typedefs().get(name);
 
         // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
-        if (enumSymbol == null) {
+        if (typedefSymbol == null) {
             return new HashSet<>();
         }
 
-        return new HashSet<>(List.of(enumSymbol));
+        return new HashSet<>(List.of(typedefSymbol));
     }
 
     @Override
     public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
-        var enumSymbol = table.structs().get(name);
+        var typedefSymbol = table.structs().get(name);
 
         // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
-        if (enumSymbol == null) {
+        if (typedefSymbol == null) {
             return;
         }
 
-        dependencies.add(enumSymbol);
+        dependencies.add(typedefSymbol);
     }
 }

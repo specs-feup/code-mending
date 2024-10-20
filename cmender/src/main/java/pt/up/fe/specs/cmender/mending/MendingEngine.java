@@ -309,16 +309,6 @@ public class MendingEngine {
             var diagnosticID = DiagnosticID.fromIntID(firstError.id());
 
             switch (diagnosticID) {
-                case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
-                        MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
-                case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
-                        MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
-                        MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->
-                        MendingHandlers.handleErrTypecheckInvalidOperands(firstError, mendingTable);
-                case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->
-                        MendingHandlers.handleErrPPFileNotFound(firstError, mendingTable, mendingDirData);
                 case DiagnosticID.UNKNOWN -> {
                     MendingHandlers.handleUnknown(firstError, mendingTable);
                     return DiagnosticMendResult.builder()
@@ -327,6 +317,22 @@ public class MendingEngine {
                             .mendedDiags(List.of())
                             .build();
                 }
+                case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
+                        MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
+                case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
+                        MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
+                case DiagnosticID.ERR_UNDECLARED_VAR_USE_SUGGEST ->
+                        MendingHandlers.handleErrUndeclaredVarUseSuggest(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
+                        MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->
+                        MendingHandlers.handleErrTypecheckInvalidOperands(firstError, mendingTable);
+                case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->
+                        MendingHandlers.handleErrPPFileNotFound(firstError, mendingTable, mendingDirData);
+                case DiagnosticID.ERR_TYPECHECK_DECL_INCOMPLETE_TYPE ->
+                        MendingHandlers.handleErrTypecheckDeclIncompleteType(firstError, mendingTable);
+                case DiagnosticID.ERR_NO_MEMBER ->
+                        MendingHandlers.handleErrNoMember(firstError, mendingTable);
             }
 
             // TODO improve? this success=false is misleading because it can be successful in the sense that it

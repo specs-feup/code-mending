@@ -3,7 +3,9 @@ package pt.up.fe.specs.cmender.lang.symbol;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+
 import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.ArrayList;
@@ -41,15 +43,15 @@ public class RecordSymbol extends Symbol {
     @Accessors(fluent = true)
     public static class Member extends Symbol {
 
-        private QualType qualType;
+        private final TypedefType type;
 
-        public Member(String name, QualType qualType) {
+        public Member(String name, TypedefType type) {
             super(name);
-            this.qualType = qualType;
+            this.type = type;
         }
 
         public void setType(QualType qualType) {
-            this.qualType = qualType;
+            type.setAliasedType(qualType);
         }
 
         @Override
@@ -59,17 +61,18 @@ public class RecordSymbol extends Symbol {
 
         @Override
         public String asDefinitionString() {
-            return qualType.substituteTypeUsageId(name) + ";";
+            return type.name() + " " + name + ";";
+            //return type.aliasedType().substituteTypeUsageId(name) + ";";
         }
 
         @Override
         public Set<Symbol> getDirectDependencies(MendingTable table) {
-            return qualType.getDirectDependencies(table);
+            return type.getDirectDependencies(table);
         }
 
         @Override
         public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
-            qualType.addDirectDependencies(dependencies, table);
+            type.addDirectDependencies(dependencies, table);
         }
     }
 
