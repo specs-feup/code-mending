@@ -62,6 +62,8 @@ private:
 
     static ordered_json getTokenKindSpelling(clang::tok::TokenKind tokenKind);
 
+    static ordered_json getDeclContextInfo(const clang::DeclContext *declContext);
+
 public:
     explicit JsonDiagnosticConsumer(clang::CompilerInstance &compilerInstance_)
                 : compilerInstance(compilerInstance_),

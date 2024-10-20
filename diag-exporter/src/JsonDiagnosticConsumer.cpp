@@ -9,8 +9,11 @@
 #include <clang/Basic/DiagnosticIDs.h>
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/SourceManager.h>
+
 #include <iostream>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
 
 #include "JsonDiagnosticConsumer.h"
 #include "QualTypeJsonConverter.h"
@@ -322,9 +325,11 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                 break;
             }
             case clang::DiagnosticsEngine::ak_declcontext: {
-                // TODO
+                const auto *declContext = reinterpret_cast<clang::DeclContext *>(info.getRawArg(i));
+
                 messageInfo["args"].push_back({
                     {"kind", "decl_context"},
+                    {"declContext", getDeclContextInfo(declContext)}
                 });
                 break;
             }
@@ -526,4 +531,46 @@ ordered_json JsonDiagnosticConsumer::getTokenKindSpelling(const clang::tok::Toke
     }
 
     return nullptr;
+}
+
+ordered_json JsonDiagnosticConsumer::getDeclContextInfo(const clang::DeclContext *declContext) {
+    if (declContext == nullptr) {
+        return nullptr;
+    }
+
+    std::string declKind(declContext->getDeclKindName());
+
+    std::for_each(declKind.begin(), declKind.end(), [](char &c) {
+        c = std::tolower(c);
+    });
+
+    auto ret = ordered_json::object({
+        {"kind", declKind},
+    });
+
+    if (declKind == "record") {
+        const auto recordDecl = llvm::dyn_cast<clang::RecordDecl>(declContext);
+
+        std::string tagKind = "unknown";
+
+        switch (recordDecl->getTagKind()) {
+            case clang::TTK_Struct: tagKind = "struct"; break;
+            case clang::TTK_Union: tagKind = "union"; break;
+            case clang::TTK_Class: tagKind = "class"; break;
+            case clang::TTK_Interface: tagKind = "interface"; break;
+            case clang::TTK_Enum: tagKind = "enum"; break;
+        }
+
+        ret["tagKind"] = tagKind;
+        ret["name"] = recordDecl->getName();
+
+    } else if (declKind == "enum") {
+        const auto enumDecl = llvm::dyn_cast<clang::EnumDecl>(declContext);
+        ret["tagKind"] = "enum";
+        ret["name"] = enumDecl->getName();
+    }
+
+    // TODO add more info
+
+    return ret;
 }
