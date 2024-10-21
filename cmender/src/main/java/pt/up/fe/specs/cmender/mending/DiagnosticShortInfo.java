@@ -18,11 +18,11 @@ public record DiagnosticShortInfo(
     // TODO we can also call this 'of' or 'to'
     public static DiagnosticShortInfo from(Diagnostic diag) {
         return DiagnosticShortInfo.builder()
-                .id(DiagnosticID.fromIntID(diag.id()).getStringID())
+                .id(DiagnosticID.fromIntID(diag.id()).getLabelID())
                 .level(diag.level())
                 .line(diag.location().isFileLoc()? diag.location().presumedLoc().line() : diag.location().expansionLoc().line()) // TODO verify if for macro loc we should use expansion loc
                 .column(diag.location().isFileLoc()? diag.location().presumedLoc().column() : diag.location().expansionLoc().column()) // TODO verify if for macro loc we should use expansion loc
-                .message(diag.message().text())
+                .message(diag.description().message())
                 .build();
     }
 }

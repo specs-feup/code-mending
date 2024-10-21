@@ -7,11 +7,11 @@ import java.util.List;
 
 public record Diagnostic (
         int id,
-        String description,
+        String labelId,
         DiagnosticLevel level,
         String category,
         int group,
-        DiagnosticMessage message,
+        DiagnosticDescription description,
         DiagnosticLocation location,
         List<DiagnosticSourceRange> sourceRanges,
         String codeSnippet

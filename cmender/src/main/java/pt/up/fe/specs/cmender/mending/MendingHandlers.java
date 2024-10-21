@@ -45,7 +45,7 @@ public class MendingHandlers {
     public static void handleExtImplicitFunctionDeclC99(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("C99 implicit function declaration");
 
-        var functionName = ((IdentifierArg) diag.message().args().getFirst()).name();
+        var functionName = ((IdentifierArg) diag.description().args().getFirst()).name();
 
         var returnQualType = new QualType(
                 "void",
@@ -103,11 +103,11 @@ public class MendingHandlers {
     public static void handleErrTypecheckConvertIncompatible(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Incompatible type conversion");
 
-        var lhsQualTypeArgOptional = diag.message().args().stream().filter(
+        var lhsQualTypeArgOptional = diag.description().args().stream().filter(
                 arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
         ).findFirst();
 
-        var rhsQualTypeArgOptional = diag.message().args().stream().filter(
+        var rhsQualTypeArgOptional = diag.description().args().stream().filter(
                 arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
         ).skip(1).findFirst();
 
@@ -161,11 +161,11 @@ public class MendingHandlers {
     public static void handleErrTypecheckInvalidOperands(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Invalid operands");
 
-        var lhsQualTypeArgOptional = diag.message().args().stream().filter(
+        var lhsQualTypeArgOptional = diag.description().args().stream().filter(
                 arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
         ).findFirst();
 
-        var rhsQualTypeArgOptional = diag.message().args().stream().filter(
+        var rhsQualTypeArgOptional = diag.description().args().stream().filter(
                 arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
         ).skip(1).findFirst();
 
@@ -236,7 +236,7 @@ public class MendingHandlers {
        var includePath = mendingDirData.includePath();
 
        try {
-           var stdStringArg = (StdStringArg) diag.message().args().getFirst();
+           var stdStringArg = (StdStringArg) diag.description().args().getFirst();
 
            var headerFilePath = Paths.get(includePath, stdStringArg.string());
 
@@ -257,7 +257,7 @@ public class MendingHandlers {
 
        // Most certainly this diagnostic only happens if the type is one whose name we dont control
        //  but have to declare it to be able to use it in the code
-       var qualTypeArgOptional = diag.message().args().stream().filter(
+       var qualTypeArgOptional = diag.description().args().stream().filter(
                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
        ).findFirst();
 
@@ -290,9 +290,9 @@ public class MendingHandlers {
    public static void handleErrNoMember(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("No member");
 
-        var memberName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+        var memberName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
 
-        var declContextArg = diag.message().args().stream().filter(
+        var declContextArg = diag.description().args().stream().filter(
                 arg -> arg.kind() == DiagnosticArgKind.DECL_CONTEXT
         ).findFirst();
 
@@ -349,13 +349,13 @@ public class MendingHandlers {
    }
 
     public static void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
-        CliReporting.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
-        Logging.FILE_LOGGER.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.message().text());
+        CliReporting.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.description().message());
+        Logging.FILE_LOGGER.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.description().message());
     }
 
 
     public static void declareVar(Diagnostic diag, MendingTable mendingTable) {
-        var varName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+        var varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
 
         var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
         var structSymbol = new RecordSymbol(structType.name());
@@ -379,7 +379,7 @@ public class MendingHandlers {
     }
 
     public static void declareTypedef(Diagnostic diag, MendingTable mendingTable) {
-        var typedefName = ((DeclarationNameArg) diag.message().args().getFirst()).name();
+        var typedefName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
 
         var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
         var structSymbol = new RecordSymbol(structType.name());

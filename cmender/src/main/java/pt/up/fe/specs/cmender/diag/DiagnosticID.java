@@ -49,29 +49,29 @@ public enum DiagnosticID {
     // When a function is used without being declared
     EXT_IMPLICIT_FUNCTION_DECL_C99(4912);
 
-    private final int intID;
+    private final int id;
 
     private static final Map<Integer, DiagnosticID> ID_MAP;
 
     static {
         ID_MAP = Arrays
                     .stream(DiagnosticID.values())
-                    .collect(Collectors.toMap(DiagnosticID::intID, diagnosticID -> diagnosticID));
+                    .collect(Collectors.toMap(DiagnosticID::id, diagnosticID -> diagnosticID));
     }
 
-    DiagnosticID(int intID) {
-        this.intID = intID;
+    DiagnosticID(int id) {
+        this.id = id;
     }
 
     public static DiagnosticID fromIntID(int id) {
         return ID_MAP.getOrDefault(id, UNKNOWN);
     }
 
-    public int getIntID() {
-        return intID;
+    public int getId() {
+        return id;
     }
 
-    public String getStringID() {
+    public String getLabelID() {
         return this.name().toLowerCase();
     }
 }
