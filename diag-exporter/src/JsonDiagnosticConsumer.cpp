@@ -18,7 +18,7 @@
 #include "JsonDiagnosticConsumer.h"
 #include "QualTypeJsonConverter.h"
 
-const std::string JsonDiagnosticConsumer::diagDescriptionsTable[clang::diag::DIAG_UPPER_LIMIT] = {
+const std::string JsonDiagnosticConsumer::diagLabelIdsTable[clang::diag::DIAG_UPPER_LIMIT] = {
     #define DIAG(ENUM, CLASS, DEFAULT_SEVERITY, DESC, GROUP, SFINAE, NOWERROR,     \
                  SHOWINSYSHEADER, SHOWINSYSMACRO, DEFERRABLE, CATEGORY)            \
         #ENUM,
@@ -57,11 +57,11 @@ void JsonDiagnosticConsumer::HandleDiagnostic(const clang::DiagnosticsEngine::Le
     diagsInfo["diags"].push_back(
         ordered_json::object({
             {"id", diagID},
-            {"description", getDescription(diagID)},
+            {"labelId", getLabelId(diagID)},
             {"level", getLevelAsString(diagLevel)},
             {"category", getCategory(diagID)},
             {"group", getGroup(diagID)},
-            {"message", getMessageInfo(info)},
+            {"description", getDescriptionInfo(info)},
             {"location", getLocationInfo(info)},
             {"sourceRanges", getSourceRanges(info)},
             {"codeSnippet", getCodeSnippet(info)}
@@ -113,7 +113,7 @@ void JsonDiagnosticConsumer::updateDiagnosticCounts(clang::DiagnosticsEngine::Le
     }
 }
 
-ordered_json JsonDiagnosticConsumer::getDescription(const unsigned diagID) {
+ordered_json JsonDiagnosticConsumer::getLabelId(const unsigned diagID) {
     if (diagID >= clang::diag::DIAG_UPPER_LIMIT || diagID <= clang::diag::DIAG_START_COMMON) {
         return nullptr;
     }
@@ -153,7 +153,7 @@ ordered_json JsonDiagnosticConsumer::getDescription(const unsigned diagID) {
 
     assert(id < diagsNum && offset < diagsNum);
 
-    return diagDescriptionsTable[id + offset];
+    return diagLabelIdsTable[id + offset];
 }
 
 ordered_json JsonDiagnosticConsumer::getLevelAsString(const clang::DiagnosticsEngine::Level diagLevel) {
@@ -180,14 +180,14 @@ int JsonDiagnosticConsumer::getGroup(const unsigned diagID) {
     return static_cast<int>(group.value());
 }
 
-ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &info) {
+ordered_json JsonDiagnosticConsumer::getDescriptionInfo(const clang::Diagnostic &info) {
     const auto engine = info.getDiags();
 
     llvm::SmallVector<char, 256> message{};
     info.FormatDiagnostic(message);
 
-    auto messageInfo = ordered_json::object({
-        {"text", std::string(message.data(), message.size())},
+    auto descriptionInfo = ordered_json::object({
+        {"message", std::string(message.data(), message.size())},
         {"format", engine->getDiagnosticIDs()->getDescription(info.getID())},
         {"args", ordered_json::array()}
     });
@@ -196,28 +196,28 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
     for (unsigned i = 0; i < info.getNumArgs(); i++) {
         switch (info.getArgKind(i)) {
             case clang::DiagnosticsEngine::ak_std_string: {
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "std_string"},
                     {"string", info.getArgStdStr(i)}
                 });
                 break;
             }
             case clang::DiagnosticsEngine::ak_c_string: {
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "c_string"},
                     {"string", info.getArgCStr(i)}
                 });
                 break;
             }
             case clang::DiagnosticsEngine::ak_sint: {
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "sint"},
                     {"int", info.getArgSInt(i)}
                 });
                 break;
             }
             case clang::DiagnosticsEngine::ak_uint: {
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "uint"},
                     {"int", info.getArgUInt(i)}
                 });
@@ -226,7 +226,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_tokenkind: {
                 const auto tokenKind = static_cast<clang::tok::TokenKind>(info.getRawArg(i));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "token_kind"},
                     {"name", clang::tok::getTokenName(tokenKind)},
                     {"spelling", getTokenKindSpelling(tokenKind)},
@@ -237,7 +237,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_identifierinfo: {
                 const auto identifierInfo = info.getArgIdentifier(i);
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "identifier"},
                     {"name", identifierInfo->getName()},
                     {"isReserved", identifierInfo->isReserved(compilerInstance.getLangOpts())},
@@ -266,7 +266,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
                     addrSpace = compilerInstance.getASTContext().getLangOpts().OpenCL? "default" : "generic";
                 }
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "addr_space"},
                     {"langAddressSpace", addrSpace}
                 });
@@ -275,7 +275,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_qual: {
                 auto qualifiers = clang::Qualifiers::fromOpaqueValue(info.getRawArg(i));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "qual"},
                     {"qual", QualTypeJsonConverter::convertQualifiersToJson(qualifiers)}
                 });
@@ -284,7 +284,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_qualtype: {
                 auto qualType = clang::QualType::getFromOpaquePtr(reinterpret_cast<void *>(info.getRawArg(i)));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "qualtype"},
                     {"qualType", qualTypeJsonConverter.convertQualTypeToJson(qualType)}
                 });
@@ -293,7 +293,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_declarationname: {
                 const auto declName = clang::DeclarationName::getFromOpaqueInteger(info.getRawArg(i));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "declaration_name"},
                     {"name", declName.getAsString()}
                 });
@@ -303,7 +303,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_nameddecl: {
                 const auto *namedDecl = reinterpret_cast<const clang::NamedDecl *>(info.getRawArg(i));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "named_decl"},
                     {"idName", namedDecl->getName()},
                     {"readableName", namedDecl->getNameAsString()},
@@ -319,7 +319,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             }
             case clang::DiagnosticsEngine::ak_nestednamespec: {
                 // TODO
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "nested_name_spec"},
                 });
                 break;
@@ -327,7 +327,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_declcontext: {
                 const auto *declContext = reinterpret_cast<clang::DeclContext *>(info.getRawArg(i));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "decl_context"},
                     {"declContext", getDeclContextInfo(declContext)}
                 });
@@ -335,7 +335,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             }
             case clang::DiagnosticsEngine::ak_qualtype_pair: {
                 // TODO
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "qualtype_pair"},
                 });
                 break;
@@ -343,7 +343,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
             case clang::DiagnosticsEngine::ak_attr: {
                 const auto *attr = reinterpret_cast<clang::Attr *>(info.getRawArg(i));
 
-                messageInfo["args"].push_back({
+                descriptionInfo["args"].push_back({
                     {"kind", "attr"},
                     {"spelling", attr->getSpelling()}
                 });
@@ -352,7 +352,7 @@ ordered_json JsonDiagnosticConsumer::getMessageInfo(const clang::Diagnostic &inf
         }
     }
 
-    return messageInfo;
+    return descriptionInfo;
 }
 
 ordered_json JsonDiagnosticConsumer::getPresumedLocInfo(const clang::SourceLocation &sLoc, const clang::SourceManager &sManager) {

@@ -32,15 +32,15 @@ private:
 
     unsigned fatalCount{};
 
-    static const std::string diagDescriptionsTable[clang::diag::DIAG_UPPER_LIMIT];
+    static const std::string diagLabelIdsTable[clang::diag::DIAG_UPPER_LIMIT];
 
-    static constexpr unsigned diagsNum = std::size(diagDescriptionsTable);
+    static constexpr unsigned diagsNum = std::size(diagLabelIdsTable);
 
     /***************************************************************************/
 
     void updateDiagnosticCounts(clang::DiagnosticsEngine::Level level);
 
-    static ordered_json getDescription(unsigned diagID);
+    static ordered_json getLabelId(unsigned diagID);
 
     static ordered_json getLevelAsString(clang::DiagnosticsEngine::Level diagLevel);
 
@@ -48,7 +48,7 @@ private:
 
     static int getGroup(unsigned diagID);
 
-    ordered_json getMessageInfo(const clang::Diagnostic &info);
+    ordered_json getDescriptionInfo(const clang::Diagnostic &info);
 
     static ordered_json getPresumedLocInfo(const clang::SourceLocation &sLoc, const clang::SourceManager &sManager);
 
