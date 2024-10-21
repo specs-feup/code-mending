@@ -7,4 +7,12 @@ public record DiagnosticLocation(
         SourceLocation presumedLoc,
         SourceLocation expansionLoc,
         List<SourceLocation> spellingLocs
-) { }
+) {
+    public boolean isFileLoc() {
+        return type == DiagnosticLocationType.FILE;
+    }
+
+    public boolean isMacroLoc() {
+        return type == DiagnosticLocationType.MACRO;
+    }
+}

@@ -13,13 +13,13 @@ public record DiagExporterSingleSourceResult(
         int fatalCount,
         List<Diagnostic> diags
 ) {
-    public boolean hasErrors() {
+    public boolean hasErrorsOrFatals() {
         return errorCount > 0 || fatalCount > 0;
     }
 
-    public Diagnostic getFirstError() {
+    public Diagnostic getFirstErrorOrFatal() {
         return diags.stream()
-                .filter(diagnostic -> diagnostic.level() == DiagnosticLevel.ERROR || diagnostic.level() == DiagnosticLevel.FATAL)
+                .filter(Diagnostic::isErrorOrFatal)
                 .findFirst()
                 .orElse(null);
     }

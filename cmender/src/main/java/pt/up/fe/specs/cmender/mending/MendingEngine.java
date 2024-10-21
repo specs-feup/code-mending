@@ -9,6 +9,7 @@ import pt.up.fe.specs.cmender.diag.DiagExporterException;
 import pt.up.fe.specs.cmender.diag.DiagExporterInvocation;
 import pt.up.fe.specs.cmender.diag.DiagExporterResult;
 import pt.up.fe.specs.cmender.diag.DiagExporterSingleSourceResult;
+import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.diag.DiagnosticID;
 import pt.up.fe.specs.cmender.logging.Logging;
 import pt.up.fe.specs.cmender.utils.TimeMeasure;
@@ -120,7 +121,7 @@ public class MendingEngine {
             var mendfileWritingTotalTime = 0L;
 
 
-            List<DiagnosticResultInfo> unknownDiags = new ArrayList<>();
+            List<DiagnosticShortInfo> unknownDiags = new ArrayList<>();
 
             List<SourceIterationResult> iterationResults = new ArrayList<>();
 
@@ -198,7 +199,6 @@ public class MendingEngine {
     }
 
     private SourceIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration, MendingTable mendingTable) {
-        var sourceFileCopy = mendingDirData.sourceFileCopyPath();
         var timedResult = TimeMeasure.measureElapsed(() -> {
             long mendfileWritingTime = 0;
 
@@ -223,9 +223,14 @@ public class MendingEngine {
                 mendfileWritingTime = writeMendfile(mendingTable, mendingDirData, currentIteration);
             }
 
+            var errorDiags = firstSourceResult.diags().stream()
+                    .filter(Diagnostic::isError)
+                    .toList();
+
             return SourceIterationResult.builder()
-                    .diags(firstSourceResult.diags().stream().map(diag ->
-                            new DiagnosticResultInfo(DiagnosticID.fromIntID(diag.id()).getStringID(), diag.message().text())).toList())
+                    .errorCount(firstSourceResult.errorCount())
+                    .fatalCount(firstSourceResult.fatalCount())
+                    .diags(errorDiags.stream().map(DiagnosticShortInfo::from).toList())
                     .mendResult(diagnosticMendingResult)
 
                     // Iteration times in NS
@@ -288,11 +293,12 @@ public class MendingEngine {
         });
     }
 
-    private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(DiagExporterSingleSourceResult sourceResult, MendingTable mendingTable, MendingDirData mendingDirData) {
+    private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(
+            DiagExporterSingleSourceResult diagExporterSingleSourceResult, MendingTable mendingTable, MendingDirData mendingDirData) {
         return TimeMeasure.measureElapsed(() -> {
             // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
 
-            if (!sourceResult.hasErrors()) {
+            if (!diagExporterSingleSourceResult.hasErrorsOrFatals()) {
                 return DiagnosticMendResult.builder()
                         .success(true)
                         .unknownDiags(List.of())
@@ -300,9 +306,12 @@ public class MendingEngine {
                         .build();
             }
 
-            // TODO process warnings and notes
+            // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
+            // have been present on the original code
 
-            var firstError = sourceResult.getFirstError();
+            // TODO for now we don't have a need to to process notes, but they might be useful in the future
+
+            var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
 
             System.out.println(firstError);
 
@@ -313,7 +322,7 @@ public class MendingEngine {
                     MendingHandlers.handleUnknown(firstError, mendingTable);
                     return DiagnosticMendResult.builder()
                             .success(false)
-                            .unknownDiags(List.of(new DiagnosticResultInfo(diagnosticID.getStringID(), firstError.message().text())))
+                            .unknownDiags(List.of(DiagnosticShortInfo.from(firstError)))
                             .mendedDiags(List.of())
                             .build();
                 }
@@ -344,7 +353,7 @@ public class MendingEngine {
                     .success(false)
                     .appliedMend(true)
                     .unknownDiags(List.of())
-                    .mendedDiags(List.of(new DiagnosticResultInfo(diagnosticID.getStringID(), firstError.message().text())))
+                    .mendedDiags(List.of(DiagnosticShortInfo.from(firstError)))
                     .build();
         });
     }

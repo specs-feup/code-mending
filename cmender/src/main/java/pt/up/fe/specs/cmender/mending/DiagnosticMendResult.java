@@ -10,8 +10,8 @@ import java.util.List;
 public record DiagnosticMendResult(
         boolean success,
         boolean appliedMend,
-        List<DiagnosticResultInfo> unknownDiags,
-        List<DiagnosticResultInfo> mendedDiags
+        List<DiagnosticShortInfo> unknownDiags,
+        List<DiagnosticShortInfo> mendedDiags
 ) {
     // TODO isContinueOnUnknownDiagnostic must also make it so you skip the unknown diagnostics
     //   or else it will just keep trying to mend the same unknown diagnostic

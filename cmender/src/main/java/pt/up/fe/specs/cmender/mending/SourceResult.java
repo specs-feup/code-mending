@@ -12,7 +12,7 @@ public record SourceResult(
 
         long iterations,
 
-        List<DiagnosticResultInfo> unknownDiags,
+        List<DiagnosticShortInfo> unknownDiags,
 
         List<SourceIterationResult> iterationResults,
 

@@ -15,4 +15,32 @@ public record Diagnostic (
         DiagnosticLocation location,
         List<DiagnosticSourceRange> sourceRanges,
         String codeSnippet
-) { }
+) {
+    public boolean isIgnored() {
+        return level == DiagnosticLevel.IGNORED;
+    }
+
+    public boolean isNote() {
+        return level == DiagnosticLevel.NOTE;
+    }
+
+    public boolean isRemark() {
+        return level == DiagnosticLevel.REMARK;
+    }
+
+    public boolean isWarning() {
+        return level == DiagnosticLevel.WARNING;
+    }
+
+    public boolean isError() {
+        return level == DiagnosticLevel.ERROR;
+    }
+
+    public boolean isFatal() {
+        return level == DiagnosticLevel.FATAL;
+    }
+
+    public boolean isErrorOrFatal() {
+        return isError() || isFatal();
+    }
+}
