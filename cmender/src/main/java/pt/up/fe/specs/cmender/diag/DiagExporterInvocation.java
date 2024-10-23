@@ -14,6 +14,11 @@ import java.util.ArrayList;
 @Getter
 @Accessors(fluent = true)
 public class DiagExporterInvocation {
+
+    // public static final String DEFAULT_OUTPUT_FILENAME_NO_EXT = "cmender_diags_output";
+
+    public static final String DEFAULT_OUTPUT_FILENAME = "diag_exporter_diags_output.json";
+
     @Builder.Default
     private List<String> includePaths = new ArrayList<>();
 
@@ -21,7 +26,7 @@ public class DiagExporterInvocation {
     private List<String> files = new ArrayList<>();
 
     @Builder.Default
-    private String outputFilepath = "./cmender_diags_output.json";
+    private String outputFilepath = "./" + DEFAULT_OUTPUT_FILENAME; // the "./" is not necessary, but it is added for clarity
 
     @Builder.Default
     private Lang lang = Lang.C;

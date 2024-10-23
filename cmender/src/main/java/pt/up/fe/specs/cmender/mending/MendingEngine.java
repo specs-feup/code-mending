@@ -1,5 +1,6 @@
 package pt.up.fe.specs.cmender.mending;
 
+import org.apache.commons.io.FileUtils;
 import pt.up.fe.specs.cmender.CMenderInvocation;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.CMenderDataManager;
@@ -83,7 +84,7 @@ public class MendingEngine {
             return null;
         }*/
 
-        var mendingDirData = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME);
+        var mendingDirData = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME, menderInvocation.getDiagsOutputFilename());
 
         System.out.println(mendingDirData);
 
@@ -91,10 +92,22 @@ public class MendingEngine {
             return null;
         }
 
-        return CMenderResult.builder()
+        var cmenderResult = CMenderResult.builder()
                 .invocation(menderInvocation)
                 .sourceResults(List.of(mend(file, mendingDirData)))
                 .build();
+
+        ResultsExporter.exportResults(menderInvocation, mendingDirData, cmenderResult);
+
+        // delete the mending directory
+        try {
+            FileUtils.deleteDirectory(new File(mendingDirData.dirPath()));
+        } catch (IOException e) {
+            Logging.FILE_LOGGER.error(e.getMessage(), e);
+            CliReporting.error("could not delete mending directory: '%s'", mendingDirData.dirPath());
+        }
+
+        return cmenderResult;
     }
 
     private SourceResult mend(String sourceFile, MendingDirData mendingDirData/*String sourceFileCopy*/) {
@@ -140,6 +153,7 @@ public class MendingEngine {
                 success = sourceIterationResult.mendResult().success();
                 finished = success || sourceIterationResult.mendResult().finishedPrematurely(menderInvocation);
 
+                // TODO should we add the iteration results for the last iteration if it was successful?
                 unknownDiags.addAll(sourceIterationResult.mendResult().unknownDiags());
 
                 iterationResults.add(sourceIterationResult);
@@ -147,7 +161,7 @@ public class MendingEngine {
 
             return SourceResult.builder()
                     .success(success)
-                    .iterations(currentIteration - 1)
+                    .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                     .unknownDiags(new ArrayList<>(unknownDiags))
                     .iterationResults(iterationResults)
 
@@ -202,7 +216,7 @@ public class MendingEngine {
         var timedResult = TimeMeasure.measureElapsed(() -> {
             long mendfileWritingTime = 0;
 
-            TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData);
+            TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData, currentIteration);
             DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
 
             if (diagExporterResult == null) {
@@ -274,20 +288,36 @@ public class MendingEngine {
                 .build();
     }
 
-    private TimedResult<DiagExporterResult> callDiagExporter(MendingDirData mendingDirData) {
+    private TimedResult<DiagExporterResult> callDiagExporter(MendingDirData mendingDirData, long iteration) {
         return TimeMeasure.measureElapsed(() -> {
             try {
-                return diagExporter.run(
+                var result = diagExporter.run(
                         DiagExporterInvocation
                                 .builder()
                                 .includePaths(List.of(mendingDirData.includePath()))
                                 .files(List.of(mendingDirData.sourceFileCopyPath()))
-                                .outputFilepath("./cmender_diags_output.json") // TODO change name
+                                .outputFilepath(mendingDirData.diagsFilePath())
+                                //.outputFilepath("./cmender_diags_output.json") // TODO change name
                                 .build());
+
+                // copy the diags output file for each iteration
+                if (menderInvocation.isCreateDiagsOutputCopyPerIteration()) {
+                    var filenameNoExt = menderInvocation.getDiagsOutputFilename().endsWith(".json") ?
+                            menderInvocation.getDiagsOutputFilename().substring(0, menderInvocation.getDiagsOutputFilename().length() - 5) :
+                            menderInvocation.getDiagsOutputFilename();
+                    var copyPath = Paths.get(mendingDirData.diagsDirPath(), filenameNoExt + "_" + iteration + ".json").toFile();
+                    Files.copy(Paths.get(mendingDirData.diagsFilePath()), copyPath.toPath());
+                }
+                return result;
             } catch (DiagExporterException e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not export Clang diagnostics from file: '%s'", mendingDirData.sourceFileCopyPath());
+                return null;
+            } catch (IOException e) {
+                Logging.FILE_LOGGER.error(e.getMessage(), e);
+                CliReporting.error(e.getMessage());
+                CliReporting.error("could not copy diags output file for iteration %d", iteration);
                 return null;
             }
         });
@@ -378,6 +408,7 @@ public class MendingEngine {
 
                     Files.copy(mendingFile.toPath(), copyPath.toPath());
 
+                    // TODO we shouldnt need to get the canonical path here. refactor when creating the CMender data path and mendingdirs
                     mendingDirData.mendfileCopyPaths().add(copyPath.getCanonicalPath());
                 }
             } catch (IOException e) {
