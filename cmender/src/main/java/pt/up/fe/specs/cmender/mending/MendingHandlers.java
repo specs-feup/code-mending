@@ -326,7 +326,7 @@ public class MendingHandlers {
         var declContext = ((DeclContextArg) diag.description().args().get(1)).declContext();
 
         switch (declContext.kind()) {
-            case RECORD:
+            case RECORD: {
                 var recordDeclContext = (RecordDecl) declContext;
 
                 if (recordDeclContext.tagKind() != RecordType.RecordKind.STRUCT) {
@@ -361,7 +361,7 @@ public class MendingHandlers {
                 mendingTable.put(typedefSymbol);
                 mendingTable.putTypeNameMapping(typedefType.name(), member);
                 recordSymbol.addMember(member);
-
+            }
                 break;
             default: {
                 return;
