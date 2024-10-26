@@ -5,10 +5,12 @@ import pt.up.fe.specs.cmender.data.MendingDirData;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.diag.args.DeclContextArg;
 import pt.up.fe.specs.cmender.diag.args.DeclarationNameArg;
-import pt.up.fe.specs.cmender.diag.args.DiagnosticArgKind;
+import pt.up.fe.specs.cmender.diag.args.DiagnosticArgsMatcher;
 import pt.up.fe.specs.cmender.diag.args.IdentifierArg;
 import pt.up.fe.specs.cmender.diag.args.QualTypeArg;
+import pt.up.fe.specs.cmender.diag.args.SIntArg;
 import pt.up.fe.specs.cmender.diag.args.StdStringArg;
+import pt.up.fe.specs.cmender.diag.args.UIntArg;
 import pt.up.fe.specs.cmender.lang.declContext.RecordDecl;
 import pt.up.fe.specs.cmender.lang.symbol.EnumSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.FunctionSymbol;
@@ -25,6 +27,7 @@ import pt.up.fe.specs.cmender.logging.Logging;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 // TODO delete all types that arent being used (should only be deleted if there are no usages of it)
 
@@ -45,7 +48,15 @@ public class MendingHandlers {
     public static void handleExtImplicitFunctionDeclC99(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("C99 implicit function declaration");
 
-        var functionName = ((IdentifierArg) diag.description().args().getFirst()).name();
+        String functionName;
+
+        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) {
+            functionName = ((IdentifierArg) diag.description().args().getFirst()).name();
+        } else {
+            CliReporting.error("Could not match diagnostic args for C99 implicit function declaration");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for C99 implicit function declaration");
+            return;
+        }
 
         var returnQualType = new QualType(
                 "void",
@@ -90,36 +101,54 @@ public class MendingHandlers {
 
         declareTypedef(diag, mendingTable);*/
 
-        declareVar(diag, mendingTable);
+        //var expectedTypes1 = List.of(DeclarationNameArg.class);
+        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class))) {
+            var varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
 
+            declareVar(varName, mendingTable);
+        } else {
+            CliReporting.error("Could not match diagnostic args for undeclared variable use");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for undeclared variable use");
+        }
     }
 
     public static void handleErrUndeclaredVarUseSuggest(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Undeclared variable use with suggestion");
         // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
-        declareVar(diag, mendingTable);
+
+        String varName;
+
+        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, StdStringArg.class))) {
+            varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
+        } else if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) {
+            varName = ((IdentifierArg) diag.description().args().getFirst()).name();
+        } else {
+            CliReporting.error("Could not match diagnostic args for undeclared variable use with suggestion");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for undeclared variable use with suggestion");
+            return;
+        }
+
+        declareVar(varName, mendingTable);
+
     }
 
     public static void handleErrTypecheckConvertIncompatible(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Incompatible type conversion");
 
-        var lhsQualTypeArgOptional = diag.description().args().stream().filter(
-                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
-        ).findFirst();
-
-        var rhsQualTypeArgOptional = diag.description().args().stream().filter(
-                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
-        ).skip(1).findFirst();
-
-        if (lhsQualTypeArgOptional.isEmpty() || rhsQualTypeArgOptional.isEmpty()) {
-            CliReporting.error("Could not find QualType arguments for incompatible type conversion");
-            Logging.FILE_LOGGER.error("Could not find QualType arguments for incompatible type conversion");
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(
+                QualTypeArg.class,
+                QualTypeArg.class,
+                SIntArg.class,
+                UIntArg.class,
+                SIntArg.class))) {
+            CliReporting.error("Could not match diagnostic args for incompatible type conversion");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for incompatible type conversion");
             return;
         }
 
         // lhs is the type of the variable being initialized, rhs is the type of the expression
-        var lhsQualType = ((QualTypeArg) lhsQualTypeArgOptional.get()).qualType();
-        var rhsQualType = ((QualTypeArg) rhsQualTypeArgOptional.get()).qualType();
+        var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+        var rhsQualType = ((QualTypeArg) diag.description().args().get(1)).qualType();
 
         // We need to find which side is the one we need to change
         //   1) if one of the sides has a type we don't control, we change the other side
@@ -161,23 +190,14 @@ public class MendingHandlers {
     public static void handleErrTypecheckInvalidOperands(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Invalid operands");
 
-        var lhsQualTypeArgOptional = diag.description().args().stream().filter(
-                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
-        ).findFirst();
-
-        var rhsQualTypeArgOptional = diag.description().args().stream().filter(
-                arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
-        ).skip(1).findFirst();
-
-        if (lhsQualTypeArgOptional.isEmpty() || rhsQualTypeArgOptional.isEmpty()) {
-            CliReporting.error("Could not find QualType arguments for invalid operands");
-            Logging.FILE_LOGGER.error("Could not find QualType arguments for invalid operands");
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class, QualTypeArg.class))) {
+            CliReporting.error("Could not match diagnostic args for invalid operands");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for invalid operands");
             return;
         }
 
-        var lhsQualType = ((QualTypeArg) lhsQualTypeArgOptional.get()).qualType();
-        var rhsQualType = ((QualTypeArg) rhsQualTypeArgOptional.get()).qualType();
-
+        var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+        var rhsQualType = ((QualTypeArg) diag.description().args().get(1)).qualType();
 
         QualType qualTypeToBeChanged;
         QualType qualTypeToBeKept;
@@ -230,12 +250,20 @@ public class MendingHandlers {
         typedefSymbol.setAliasedType(qualTypeToBeKept);
     }
 
-   public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
+    public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
        System.out.println("File not found");
 
+       // INSIGHT: This diagnostic's level is fatal by default. clang will stop the compilation process if this diagnostic is raised
        var includePath = mendingDirData.includePath();
 
        try {
+
+           if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(StdStringArg.class))) {
+               CliReporting.error("Could not match diagnostic args for file not found");
+               Logging.FILE_LOGGER.error("Could not match diagnostic args for file not found");
+               return;
+           }
+
            var stdStringArg = (StdStringArg) diag.description().args().getFirst();
 
            var headerFilePath = Paths.get(includePath, stdStringArg.string());
@@ -252,57 +280,50 @@ public class MendingHandlers {
 
    }
 
-   public static void handleErrTypecheckDeclIncompleteType(Diagnostic diag, MendingTable mendingTable) {
-       System.out.println("Incomplete type declaration");
+    public static void handleErrTypecheckDeclIncompleteType(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("Incomplete type declaration");
 
-       // Most certainly this diagnostic only happens if the type is one whose name we dont control
-       //  but have to declare it to be able to use it in the code
-       var qualTypeArgOptional = diag.description().args().stream().filter(
-               arg -> arg.kind() == DiagnosticArgKind.QUALTYPE
-       ).findFirst();
+        // Most certainly this diagnostic only happens if the type is one whose name we dont control
+        //  but have to declare it to be able to use it in the code
+        //  This is because we declare and define all tag types in the mending table
 
-       if (qualTypeArgOptional.isEmpty()) {
-           CliReporting.error("Could not find QualType argument for incomplete type declaration");
-           Logging.FILE_LOGGER.error("Could not find QualType argument for incomplete type declaration");
-           return;
-       }
-
-       var qualType = ((QualTypeArg) qualTypeArgOptional.get()).qualType();
-
-       if (qualType.type().isRecordType()) {
-          var recordType = (RecordType) qualType.type();
-
-          var recordSymbol = new RecordSymbol(recordType.name());
-
-          mendingTable.put(recordSymbol);
-       } else if (qualType.type().isEnumType()) {
-              var enumType = (EnumType) qualType.type();
-
-              var enumSymbol = new EnumSymbol(enumType.name());
-
-              mendingTable.put(enumSymbol);
-       } else {
-           CliReporting.error("Incomplete type declaration for non-record and non-enum type");
-           Logging.FILE_LOGGER.error("Incomplete type declaration for non-record and non-enum type");
-       }
-   }
-
-   public static void handleErrNoMember(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("No member");
-
-        var memberName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
-
-        var declContextArg = diag.description().args().stream().filter(
-                arg -> arg.kind() == DiagnosticArgKind.DECL_CONTEXT
-        ).findFirst();
-
-        if (declContextArg.isEmpty()) {
-            CliReporting.error("Could not find decl context argument for no member diagnostic");
-            Logging.FILE_LOGGER.error("Could not find decl context argument for no member diagnostic");
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class))) {
+            CliReporting.error("Could not match diagnostic args for incomplete type declaration");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for incomplete type declaration");
             return;
         }
 
-        var declContext = ((DeclContextArg) declContextArg.get()).declContext();
+        var qualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+
+        if (qualType.type().isRecordType()) {
+            var recordType = (RecordType) qualType.type();
+
+            var recordSymbol = new RecordSymbol(recordType.name());
+
+            mendingTable.put(recordSymbol);
+        } else if (qualType.type().isEnumType()) {
+            var enumType = (EnumType) qualType.type();
+
+            var enumSymbol = new EnumSymbol(enumType.name());
+
+            mendingTable.put(enumSymbol);
+        } else {
+            CliReporting.error("Incomplete type declaration for non-record and non-enum type");
+            Logging.FILE_LOGGER.error("Incomplete type declaration for non-record and non-enum type");
+        }
+   }
+
+    public static void handleErrNoMember(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("No member");
+
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, DeclContextArg.class))) {
+            CliReporting.error("Could not match diagnostic args for no member diagnostic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for no member diagnostic");
+            return;
+        }
+
+        var memberName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
+        var declContext = ((DeclContextArg) diag.description().args().get(1)).declContext();
 
         switch (declContext.kind()) {
             case RECORD:
@@ -353,10 +374,7 @@ public class MendingHandlers {
         Logging.FILE_LOGGER.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.description().message());
     }
 
-
-    public static void declareVar(Diagnostic diag, MendingTable mendingTable) {
-        var varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
-
+    public static void declareVar(String varName, MendingTable mendingTable) {
         var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
         var structSymbol = new RecordSymbol(structType.name());
 

@@ -16,6 +16,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+// TODO when exporting we should either raise an error if the exporting directory already exists or delete everything (bad alternative)
+//    This should be done because if the user outputs different results to the same output directory he might get stale results from previous iterations
 // It's better to export the results after and not directly work on the output directory
 //   mainly because errors can happen, and we might not want incomplete or corrupted results to be saved
 public class ResultsExporter {
