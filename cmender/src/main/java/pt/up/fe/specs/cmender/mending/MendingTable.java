@@ -88,13 +88,11 @@ public class MendingTable {
 
         for (var symbol : symbols) {
             graph.put(symbol, new HashSet<>());
+        }
 
+        for (var symbol : symbols) {
             for (var dep : symbol.getDirectDependencies(this)) {
-                if (graph.containsKey(dep)) {
-                    graph.get(dep).add(symbol);
-                } else {
-                    graph.put(dep, new HashSet<>(List.of(symbol)));
-                }
+                graph.get(dep).add(symbol);
             }
         }
 
