@@ -17,6 +17,8 @@ private:
 
     std::map<const void *, ordered_json> trackedTypes;
 
+    std::map<const void *, ordered_json> trackedQualTypes;
+
     static const std::string builtinTypesTable[clang::BuiltinType::LastKind+2];
 
     /***************************************************************************/
@@ -26,7 +28,12 @@ private:
 
     const ordered_json *lookupTrackedTypes(const clang::QualType &qualType) const;
 
+    const ordered_json *lookupTrackedQualTypes(const clang::QualType &qualType) const;
+
     std::string getTypeUsageInDecls(const clang::QualType &qualType) const;
+
+    ordered_json getQualTypeAsPointer(const clang::QualType &qualType);
+
 
 public:
     explicit QualTypeJsonConverter(const clang::ASTContext &context): context(context) {}

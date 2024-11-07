@@ -41,6 +41,15 @@ const ordered_json *QualTypeJsonConverter::lookupTrackedTypes(const clang::QualT
     return lookupTrackedTypes(qualType.getAsOpaquePtr());
 }
 
+const ordered_json *QualTypeJsonConverter::lookupTrackedQualTypes(const clang::QualType &qualType) const {
+    if (const auto trackedQualType = trackedQualTypes.find(qualType.getAsOpaquePtr());
+        trackedQualType != trackedQualTypes.end()) {
+        return &(trackedQualType->second);
+    }
+
+    return nullptr;
+}
+
 std::string QualTypeJsonConverter::getTypeUsageInDecls(const clang::QualType &qualType) const {
     const clang::IdentifierInfo &identiferInfo = context.Idents.get("diag_exporter_id"); // TODO specify as a program argument
     clang::TranslationUnitDecl *tuDecl = context.getTranslationUnitDecl();
@@ -63,6 +72,28 @@ std::string QualTypeJsonConverter::getTypeUsageInDecls(const clang::QualType &qu
     varDecl->print(os, context.getPrintingPolicy());
     //llvm::errs() << os.str() << "\n";
     return declString;
+}
+
+ordered_json QualTypeJsonConverter::getQualTypeAsPointer(const clang::QualType &qualType) {
+    /*const auto pointer = context.getPointerType(qualType);
+
+    qualType.dump();
+    pointer.dump();
+
+    llvm::errs() << "\n";
+    if (const auto trackedQualTypePointer = lookupTrackedQualTypePointers(pointer);
+        trackedQualTypePointer != nullptr) {
+        return *trackedQualTypePointer;
+    }
+
+    const auto qualTypePointer = convertQualTypeToJson(pointer);
+
+    if (qualTypePointer == nullptr) {
+        llvm::errs() << "qualTypePointer is nullptr\n";
+    }
+    trackedQualTypePointers[pointer.getAsOpaquePtr()] = qualTypePointer;
+
+    return qualTypePointer;*/
 }
 
 ordered_json QualTypeJsonConverter::Visit(const clang::Type *type) {
@@ -174,13 +205,40 @@ ordered_json QualTypeJsonConverter::convertQualTypeToJson(const clang::QualType 
 
     const auto canonicalQualType = qualType.getCanonicalType();
 
-    if (const auto trackedType = lookupTrackedTypes(canonicalQualType); trackedType != nullptr) {
+    // TODO this is bad because when we store a struct QualType that is not being used through a typedef alias
+    //     in the future, if that struct QualType is used in a typedef alias, we will lose the typedef alias information
+
+    /*if (const auto trackedQualType = lookupTrackedQualTypes(canonicalQualType); trackedQualType != nullptr) {
+        return *trackedQualType;
+    }*/
+
+    const auto trackedType = lookupTrackedTypes(canonicalQualType.getTypePtr());
+    const auto type = trackedType == nullptr ? Visit(canonicalQualType.getTypePtr()) : *trackedType;
+
+    const auto canonicalQualTypeJson = ordered_json::object({
+        {"typeAsString", qualType.getAsString()},
+        {"canonicalTypeAsString", canonicalQualType.getAsString()},
+        {"typeUsageInDecls", getTypeUsageInDecls(canonicalQualType)},
+        {"qual", convertQualifiersToJson(canonicalQualType.getQualifiers())},
+        {"type", type},
+        //{"qualTypeAsPointer", getQualTypeAsPointer(canonicalQualType)},
+        {"langAddressSpace", convertAddressSpaceToJson(canonicalQualType.getAddressSpace())}
+    });
+
+    trackedQualTypes[canonicalQualType.getAsOpaquePtr()] = canonicalQualTypeJson;
+
+    return canonicalQualTypeJson;
+
+    /*if (const auto trackedType = lookupTrackedTypes(canonicalQualType); trackedType != nullptr) {
+        canonicalQualType.dump();
+        llvm::errs() << "found tracked type. also means a qualtype is the same as type\n";
         return ordered_json::object({
             {"typeAsString", qualType.getAsString()},
             {"canonicalTypeAsString", canonicalQualType.getAsString()},
             {"typeUsageInDecls", getTypeUsageInDecls(canonicalQualType)},
             {"qual", convertQualifiersToJson(canonicalQualType.getQualifiers())},
             {"type", *trackedType},
+            {"qualTypeAsPointer", getQualTypeAsPointer(canonicalQualType)},
             {"langAddressSpace", convertAddressSpaceToJson(canonicalQualType.getAddressSpace())}
         });
     }
@@ -191,8 +249,9 @@ ordered_json QualTypeJsonConverter::convertQualTypeToJson(const clang::QualType 
         {"typeUsageInDecls", getTypeUsageInDecls(canonicalQualType)},
         {"qual", convertQualifiersToJson(canonicalQualType.getQualifiers())},
         {"type", Visit(canonicalQualType.getLocalUnqualifiedType().getTypePtr())},
+        {"qualTypeAsPointer", getQualTypeAsPointer(canonicalQualType)},
         {"langAddressSpace", convertAddressSpaceToJson(canonicalQualType.getAddressSpace())}
-    });
+    });*/
 }
 
 ordered_json QualTypeJsonConverter::convertQualifiersToJson(const clang::Qualifiers &qualifiers) {
