@@ -343,7 +343,7 @@ public class MendingEngine {
 
             var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
 
-            System.out.println(firstError);
+            System.out.println(">>> " + firstError);
 
             var diagnosticID = DiagnosticID.fromIntID(firstError.id());
 
@@ -372,7 +372,19 @@ public class MendingEngine {
                         MendingHandlers.handleErrTypecheckDeclIncompleteType(firstError, mendingTable);
                 case DiagnosticID.ERR_NO_MEMBER ->
                         MendingHandlers.handleErrNoMember(firstError, mendingTable);
+                case DiagnosticID.ERR_UNKNOWN_TYPENAME ->
+                        MendingHandlers.handleErrUnknownTypename(firstError, mendingTable);
+                case DiagnosticID.ERR_UNKNOWN_TYPENAME_SUGGEST ->
+                        MendingHandlers.handleErrUnknownTypenameSuggest(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_MEMBER_REFERENCE_SUGGESTION ->
+                        MendingHandlers.handleErrTypecheckMemberReferenceSuggestion(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_VALUE ->
+                        MendingHandlers.handleErrTypecheckSubscriptValue(firstError, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_NOT_INTEGER ->
+                        MendingHandlers.handleErrTypecheckSubscriptNotInteger(firstError, mendingTable);
             }
+            System.out.println();
+
 
             // TODO improve? this success=false is misleading because it can be successful in the sense that it
             //  processed the last diagnostic but we only know that next iteration after writing the mending file

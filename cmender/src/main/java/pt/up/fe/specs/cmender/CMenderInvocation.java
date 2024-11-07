@@ -29,7 +29,7 @@ public class CMenderInvocation {
     private String diagExporterPath = null;
 
     @Builder.Default
-    private Integer maxTotalIterations = 5000;
+    private Integer maxTotalIterations = 1000;
 
     // If this is set, we create mendfile copies and export them in the output directory
     // Another option for 'exportMendfileCopyPerIteration' is probably needless

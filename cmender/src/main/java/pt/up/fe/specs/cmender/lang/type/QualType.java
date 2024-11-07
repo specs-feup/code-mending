@@ -6,6 +6,7 @@ import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public record QualType(
@@ -16,6 +17,28 @@ public record QualType(
         Type type,
         LangAddressSpace langAddressSpace
 ) implements SymbolDependency {
+
+    // TODO this might be needless if we no longer work with canonical types for all types
+    public boolean isAliased() {
+        return !typeAsString.equals(canonicalTypeAsString);
+    }
+
+    public Optional<TypeName> typeName() {
+        if (isAliased()) {
+            return Optional.of(TypeName.typedefAlias(typeAsString));
+        }
+
+        if (type.isBuiltinType()) {
+            return Optional.of(TypeName.builtin(typeAsString));
+        }
+
+        if (type.isTagType()) {
+            return Optional.of(TypeName.tag(typeAsString));
+        }
+
+        return Optional.empty();
+    }
+
     @Override
     public Set<Symbol> getDirectDependencies(MendingTable table) {
         return new HashSet<>(type.getDirectDependencies(table));

@@ -42,9 +42,15 @@ public enum DiagnosticID {
     // Suggestion between member reference with -> or . (TODO this might loop)
     ERR_TYPECHECK_MEMBER_REFERENCE_SUGGESTION(4639),
 
+    ERR_TYPECHECK_SUBSCRIPT_NOT_INTEGER(4657),
+    ERR_TYPECHECK_SUBSCRIPT_VALUE(4658),
+
     // When a variable or type name from typedef is used without being declared. the id is misleading for the typedef case
     ERR_UNDECLARED_VAR_USE(4694),
     ERR_UNDECLARED_VAR_USE_SUGGEST(4695),
+
+    ERR_UNKNOWN_TYPENAME(4719),
+    ERR_UNKNOWN_TYPENAME_SUGGEST(4720),
 
     // When a function is used without being declared
     EXT_IMPLICIT_FUNCTION_DECL_C99(4912);

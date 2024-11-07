@@ -19,15 +19,20 @@ import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
 import pt.up.fe.specs.cmender.lang.type.BuiltinType;
 import pt.up.fe.specs.cmender.lang.type.EnumType;
+import pt.up.fe.specs.cmender.lang.type.PointerType;
 import pt.up.fe.specs.cmender.lang.type.QualType;
 import pt.up.fe.specs.cmender.lang.type.Qualifiers;
 import pt.up.fe.specs.cmender.lang.type.RecordType;
+import pt.up.fe.specs.cmender.lang.type.TypeKind;
 import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.logging.Logging;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 // TODO delete all types that arent being used (should only be deleted if there are no usages of it)
 
@@ -40,13 +45,18 @@ public class MendingHandlers {
     //    semantics of the original program
     // This struct will be typedef'd to a unique name for each symbol (i.e., for each variable, function, struct member)
     //      This way, we can easily replace the type of the symbol in the code by only looking at the diagnostic messages
-    //       with type mismatch information
+    //      with type mismatch information
 
+
+    // INSIGHT 1: If any of the two sides of an assignment/initialization/return has a semantic error, Clang will not
+    //      evaluate semantics regarding incompatible type conversions (and throw the diagnostic for it)
+    // INSIGHT 2: On binary expressions (and sub-expressions), Clang will only evaluate type checking compatibility
+    //      if all symbols used have been declared with types before.
 
     // TODO find if we can have the handlers as objects (also they can be placed in the enum DiagnosticID)
     //  or in terms of performance it is better to have them as static methods
     public static void handleExtImplicitFunctionDeclC99(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("C99 implicit function declaration");
+        System.out.println("[C99 implicit function declaration]");
 
         String functionName;
 
@@ -67,45 +77,29 @@ public class MendingHandlers {
                 null);
 
         // typedef void cmender_type_0; is valid C code, so we can add the typedef of a void to the mending table
-        var typedefType = new TypedefType(MendingTypeNameGenerator.newTypeName(), returnQualType);
+        var typedefSymbol = createTypedef(returnQualType, new HashSet<>(List.of(
+                    TypeKind.BUILTIN,
+                    TypeKind.POINTER,
+                    TypeKind.ARRAY,
+                    TypeKind.RECORD,
+                    TypeKind.ENUM,
+                    TypeKind.TYPEDEF,
+                    TypeKind.FUNCTION
+            )), mendingTable);
+        var function = new FunctionSymbol(functionName, typedefSymbol.typedefType());
 
-        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
-
-        var function = new FunctionSymbol(functionName, typedefType);
-
-        mendingTable.put(typedefSymbol);
         mendingTable.put(function);
-        mendingTable.putTypeNameMapping(typedefType.name(), function);
+        mendingTable.putControlledTypedefAliasMapping(typedefSymbol.typedefType().name(), function);
     }
 
     public static void handleErrUndeclaredVarUse(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Undeclared variable use");
         // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
 
-        /*var codeSnippet = diag.codeSnippet();
-
-        var identifier = ((DeclarationNameArg) diag.message().args().getFirst()).name();
-
-        var afterIdentifier = codeSnippet.substring(codeSnippet.indexOf(identifier) + identifier.length());
-
-        for (var c : afterIdentifier.toCharArray()) {
-            if (Character.isWhitespace(c)) {
-                continue;
-            }
-
-            if (c == ',' || c == ';' || c == '=') {
-                declareVar(diag, mendingTable);
-            }
-
-        }
-
-        declareTypedef(diag, mendingTable);*/
-
-        //var expectedTypes1 = List.of(DeclarationNameArg.class);
         if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class))) {
             var varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
 
-            declareVar(varName, mendingTable);
+            createMissingVariable(varName, mendingTable);
         } else {
             CliReporting.error("Could not match diagnostic args for undeclared variable use");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for undeclared variable use");
@@ -128,13 +122,13 @@ public class MendingHandlers {
             return;
         }
 
-        declareVar(varName, mendingTable);
-
+        createMissingVariable(varName, mendingTable);
     }
 
     public static void handleErrTypecheckConvertIncompatible(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("Incompatible type conversion");
-
+        // TODO conversions of return types are not being handled (return type is source of truth)
+        System.out.println("[Incompatible type conversion]");
+        // FIXME non generated typedef names are not being taken into account
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(
                 QualTypeArg.class,
                 QualTypeArg.class,
@@ -150,45 +144,101 @@ public class MendingHandlers {
         var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
         var rhsQualType = ((QualTypeArg) diag.description().args().get(1)).qualType();
 
-        // We need to find which side is the one we need to change
-        //   1) if one of the sides has a type we don't control, we change the other side
-        //   2) if both sides have types we control, we change the lhs (TODO is there a situation this can go in loop?)
-        //  TODO is there a situation where there is a side with types we can control but still havent declared?
-        //     perhaps not because Clang might need to have all variables with types declared before the conversion
+        System.out.println("lhsType: " + lhsQualType.typeAsString() + " (" + lhsQualType.canonicalTypeAsString() + ")");
+        System.out.println("rhsType: " + rhsQualType.typeAsString() + " (" + rhsQualType.canonicalTypeAsString() + ")");
 
-        QualType qualTypeToBeChanged;
-        QualType qualTypeToBeKept;
+        var lhsTypeName = lhsQualType.typeName();
+        var rhsTypeName = rhsQualType.typeName();
 
-        boolean lhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(lhsQualType.typeAsString());
-        boolean rhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(rhsQualType.typeAsString());
+        System.out.println("lhsTypeName: " + lhsTypeName);
+        System.out.println("rhsTypeName: " + rhsTypeName);
 
-        if (lhsIsGenerated && !rhsIsGenerated) {
-            qualTypeToBeChanged = lhsQualType;
-            qualTypeToBeKept = rhsQualType;
-        } else if (!lhsIsGenerated && rhsIsGenerated) {
-            qualTypeToBeChanged = rhsQualType;
-            qualTypeToBeKept = lhsQualType;
-        } else if (lhsIsGenerated && rhsIsGenerated) {
-            qualTypeToBeChanged = lhsQualType;
-            qualTypeToBeKept = rhsQualType;
-        } else {
-            CliReporting.error("Both sides of the incompatible type conversion have types we dont control");
-            Logging.FILE_LOGGER.error("Both sides of the incompatible type conversion have types we dont control");
+        if (lhsTypeName.isEmpty() && rhsTypeName.isEmpty()) {
+            CliReporting.error("Both sides are derived types without a name. Not yet implemented. This ");
             return;
         }
 
-        var typedefSymbol = mendingTable.typedefs().get(qualTypeToBeChanged.typeAsString());
+        var lhsIsSourceOfTruth = lhsTypeName.isEmpty() ||
+                mendingTable.isControlledAndNamedTagType(lhsTypeName.get()) || mendingTable.isUncontrolled(lhsTypeName.get());
+        var rhsIsSourceOfTruth = rhsTypeName.isEmpty() ||
+                mendingTable.isControlledAndNamedTagType(rhsTypeName.get()) || mendingTable.isUncontrolled(rhsTypeName.get());
 
-        typedefSymbol.setAliasedType(qualTypeToBeKept);
+        if (lhsIsSourceOfTruth && rhsIsSourceOfTruth) {
+            CliReporting.error("Both sides are source of truth. Cant do anything");
+        } else if (lhsIsSourceOfTruth ^ rhsIsSourceOfTruth) {
+            var sourceOfTruthQualType = lhsIsSourceOfTruth ? lhsQualType : rhsQualType;
+            var toBeChangedQualType = lhsIsSourceOfTruth ? rhsQualType : lhsQualType;
 
-        // TODO for now we assume the lhs is a variable, but it can also be e.g., a struct member
-        // For now we assume that the file has no comments, so we can just take the last word
-        // TODO We also assume that only one declarator is present in the lhs
-        // to be able to find the variable name and ignore statements before the variable name that might be in the same line (unlikely)
+            System.out.println("One side is source of truth: " + (lhsIsSourceOfTruth? "lhs" : "rhs"));
+
+            // Because all types from missing declarations will be typedef'd, we can change the aliased type of the typedef
+            assert (toBeChangedQualType.typeName().isPresent() && toBeChangedQualType.typeName().get().isTypedefAlias());
+            System.out.println(toBeChangedQualType);
+
+            var typedefSymbol = mendingTable.typedefs().get(toBeChangedQualType.typeName().get().typeName());
+
+            typedefSymbol.setAliasedType(sourceOfTruthQualType);
+            typedefSymbol.setPermittedTypes(Set.of());
+
+        } else { // neither is source of truth. are also both controlled typedef aliases
+            System.out.println("Both sides are controlled typedef aliases (neither is source of truth)");
+            var lhsTypename = lhsTypeName.get();
+            var rhsTypename = rhsTypeName.get();
+
+            var lhsTypedefSymbol = mendingTable.typedefs().get(lhsTypename.typeName());
+            var rhsTypedefSymbol = mendingTable.typedefs().get(rhsTypename.typeName());
+
+            if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
+                // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
+                CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
+            } else if (lhsTypedefSymbol.canChangeAliasedType() ^ rhsTypedefSymbol.canChangeAliasedType()) {
+                var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? rhsTypedefSymbol : lhsTypedefSymbol;
+                var toBeChangedTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? lhsTypedefSymbol : rhsTypedefSymbol;
+
+                System.out.println("One side can change aliased type: " + (lhsTypedefSymbol.canChangeAliasedType()? "lhs" : "rhs"));
+
+                toBeChangedTypedefSymbol.setAliasedType(sourceOfTruthTypedefSymbol.typedefType().aliasedType());
+                toBeChangedTypedefSymbol.setPermittedTypes(Set.of());
+            } else { // both can change aliased type
+                System.out.println("Both sides can change aliased type");
+                var commonPermittedTypes = new HashSet<>(lhsTypedefSymbol.permittedTypes());
+                commonPermittedTypes.retainAll(rhsTypedefSymbol.permittedTypes());
+
+                if (commonPermittedTypes.isEmpty()) {
+                    // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
+                    CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
+                    return;
+                }
+
+                var sourceOfTruthTypedefSymbol = rhsTypedefSymbol;
+
+                lhsTypedefSymbol.setAliasedType(sourceOfTruthTypedefSymbol.typedefType().aliasedType());
+                lhsTypedefSymbol.setPermittedTypes(commonPermittedTypes);
+            }
+        }
+
+
+
+        // We need to find which side is the one we need to change
+        //   1) if one of the sides has a type we don't control, we change the other side (later is source of truth)
+        //   2) if both sides have types we control, we change based on the permitted types of the typedef
+
+        // The lhs can either be a math expression (in which case the rhs needs to be a number) or a single value
+        //    in which case the rhs can be a number or a variable
+
+        // INSIGHT Most likely there is not a single situation where there is a side with types we control but still
+        //     havent declared. This is because Clang needs to have all variables with types declared before analysing
+        //     the type conversion and throwing this diagnostic. This means we assume that we dont need to declare
+        //     new types, just change the aliased type of the typedef
+
+
+        // TODO multiple declarator
     }
 
     public static void handleErrTypecheckInvalidOperands(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("Invalid operands");
+        // TODO unary operations are not being handled
+        // TODO in "==" operation, both operands can be pointers
+        System.out.println("[Invalid operands]");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class, QualTypeArg.class))) {
             CliReporting.error("Could not match diagnostic args for invalid operands");
@@ -199,55 +249,192 @@ public class MendingHandlers {
         var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
         var rhsQualType = ((QualTypeArg) diag.description().args().get(1)).qualType();
 
-        QualType qualTypeToBeChanged;
-        QualType qualTypeToBeKept;
+        System.out.println("lhsType: " + lhsQualType.typeAsString() + " (" + lhsQualType.canonicalTypeAsString() + ")");
+        System.out.println("rhsType: " + rhsQualType.typeAsString() + " (" + rhsQualType.canonicalTypeAsString() + ")");
 
-        boolean lhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(lhsQualType.typeAsString());
-        boolean rhsIsGenerated = MendingTypeNameGenerator.isGeneratedTypeName(rhsQualType.typeAsString());
+        var lhsTypeName = lhsQualType.typeName();
+        var rhsTypeName = rhsQualType.typeName();
 
-        if (lhsIsGenerated && !rhsIsGenerated) {
-            qualTypeToBeChanged = lhsQualType;
-            qualTypeToBeKept = rhsQualType;
-        } else if (!lhsIsGenerated && rhsIsGenerated) {
-            qualTypeToBeChanged = rhsQualType;
-            qualTypeToBeKept = lhsQualType;
-        } else if (lhsIsGenerated && rhsIsGenerated) {
-            // TODO for now assume that it's only number operands, and not _Bool operands
+        System.out.println("lhsTypeName: " + lhsTypeName);
+        System.out.println("rhsTypeName: " + rhsTypeName);
 
-            if (!lhsQualType.type().isNumericType()) {
-                var typedefSymbol = mendingTable.typedefs().get(lhsQualType.typeAsString());
-
-                typedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-            }
-
-            if (!rhsQualType.type().isNumericType()) {
-                var typedefSymbol = mendingTable.typedefs().get(rhsQualType.typeAsString());
-
-                typedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-            }
-
-            return;
-        } else {
-            CliReporting.error("Both sides of the invalid operands have types we dont control");
-            Logging.FILE_LOGGER.error("Both sides of the invalid operands have types we dont control");
+        if (lhsTypeName.isEmpty() && rhsTypeName.isEmpty()) {
+            CliReporting.error("Both sides are derived types without a name. Not yet implemented. This ");
             return;
         }
 
-        var typedefSymbol = mendingTable.typedefs().get(qualTypeToBeChanged.typeAsString());
+        var lhsIsSourceOfTruth = lhsTypeName.isEmpty() ||
+                mendingTable.isControlledAndNamedTagType(lhsTypeName.get()) || mendingTable.isUncontrolled(lhsTypeName.get());
+        var rhsIsSourceOfTruth = rhsTypeName.isEmpty() ||
+                mendingTable.isControlledAndNamedTagType(rhsTypeName.get()) || mendingTable.isUncontrolled(rhsTypeName.get());
 
-        typedefSymbol.setAliasedType(qualTypeToBeKept);
+        if (lhsIsSourceOfTruth && rhsIsSourceOfTruth) {
+            CliReporting.error("Both sides are source of truth. Cant do anything");
+        } else if (lhsIsSourceOfTruth ^ rhsIsSourceOfTruth) {
+            System.out.println("One side is source of truth");
+            var sourceOfTruthQualType = lhsIsSourceOfTruth ? lhsQualType : rhsQualType;
+            var toBeChangedQualType = lhsIsSourceOfTruth ? rhsQualType : lhsQualType;
+
+            // Because all types from missing declarations will be typedef'd, we can change the aliased type of the typedef
+            assert toBeChangedQualType.typeName().isPresent() && toBeChangedQualType.typeName().get().isTypedefAlias();
+
+            var typedefSymbol = mendingTable.typedefs().get(toBeChangedQualType.typeName().get().typeName());
+
+            // TODO multiplications and divisions
+
+            if (sourceOfTruthQualType.type().isPointerType() || sourceOfTruthQualType.type().isArrayType()) {
+                // Because you can only add pointers and arrays to integral types
+                typedefSymbol.setAliasedType(new QualType(
+                        "int",
+                        "int",
+                        "int diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                        null));
+
+                // Because you can only add pointers and arrays to integral types and enum
+                typedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM));
+
+            } else if (sourceOfTruthQualType.type().isBuiltinType() || sourceOfTruthQualType.type().isEnumType()) {
+                if (!typedefSymbol.canChangeAliasedType()) {
+                    // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
+                    return;
+                }
+
+                if (typedefSymbol.typedefType().aliasedType().type().isRecordType()) {
+                    typedefSymbol.setAliasedType(new QualType(
+                            "int",
+                            "int",
+                            "int diag_exporter_id",
+                            Qualifiers.unqualified(),
+                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                            null));
+
+                    typedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
+                }
+
+                // if is pointer or array, we dont do anything
+
+
+            } else { // source of truth is not a pointer, array or number or enum (i.e., is a struct or union)
+                CliReporting.error("Source of truth is not a pointer, array or number or enum and is used in an invalid operation");
+            }
+        } else { // neither is source of truth. are also both controlled typedef aliases
+            System.out.println("Both sides are controlled typedef aliases (neither is source of truth)");
+            var lhsTypename = lhsTypeName.get();
+            var rhsTypename = rhsTypeName.get();
+
+            var lhsTypedefSymbol = mendingTable.typedefs().get(lhsTypename.typeName());
+            var rhsTypedefSymbol = mendingTable.typedefs().get(rhsTypename.typeName());
+
+            if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
+                // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
+                CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
+            } else if (lhsTypedefSymbol.canChangeAliasedType() ^ rhsTypedefSymbol.canChangeAliasedType()) {
+                var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? lhsTypedefSymbol : rhsTypedefSymbol;
+                var toBeChangedTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? rhsTypedefSymbol : lhsTypedefSymbol;
+
+                if (sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isPointerType() ||
+                        sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isArrayType()) {
+                    // Because you can only add pointers and arrays to integral types
+                    toBeChangedTypedefSymbol.setAliasedType(new QualType(
+                            "int",
+                            "int",
+                            "int diag_exporter_id",
+                            Qualifiers.unqualified(),
+                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                            null));
+
+                    // Because you can only add pointers and arrays to integral types
+                    toBeChangedTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM));
+                } else if (sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isBuiltinType() ||
+                        sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isEnumType()) {
+                    if (!toBeChangedTypedefSymbol.canChangeAliasedType()) {
+                        // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
+                        return;
+                    }
+
+                    if (toBeChangedTypedefSymbol.typedefType().aliasedType().type().isRecordType()) {
+                        toBeChangedTypedefSymbol.setAliasedType(new QualType(
+                                "int",
+                                "int",
+                                "int diag_exporter_id",
+                                Qualifiers.unqualified(),
+                                new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                                null));
+
+                        toBeChangedTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
+                    }
+
+                    // if is pointer or array, we dont do anything
+                } else { // source of truth is not a pointer, array or number or enum (i.e., is a struct or union)
+                    CliReporting.error("Source of truth is not a pointer, array or number or enum and is used in an invalid operation (binary operation)");
+                }
+            } else { // both can change aliased type
+
+                // Because you can only add pointers and arrays to integral types and enums
+                lhsTypedefSymbol.permittedTypes().remove(TypeKind.RECORD);
+                rhsTypedefSymbol.permittedTypes().remove(TypeKind.RECORD);
+
+                var lhsIsRecord = lhsTypedefSymbol.typedefType().aliasedType().type().isRecordType();
+                var rhsIsRecord = rhsTypedefSymbol.typedefType().aliasedType().type().isRecordType();
+
+                var lhsHasPermittedPointerOrArray = lhsTypedefSymbol.permittedTypes().contains(TypeKind.POINTER) ||
+                        lhsTypedefSymbol.permittedTypes().contains(TypeKind.ARRAY);
+
+                var rhsHasPermittedPointerOrArray = rhsTypedefSymbol.permittedTypes().contains(TypeKind.POINTER) ||
+                        rhsTypedefSymbol.permittedTypes().contains(TypeKind.ARRAY);
+
+                var lhsHasPermittedBuiltInOrEnum = lhsTypedefSymbol.permittedTypes().contains(TypeKind.BUILTIN) ||
+                        lhsTypedefSymbol.permittedTypes().contains(TypeKind.ENUM);
+
+                var rhsHasPermittedBuiltInOrEnum = rhsTypedefSymbol.permittedTypes().contains(TypeKind.BUILTIN) ||
+                        rhsTypedefSymbol.permittedTypes().contains(TypeKind.ENUM);
+
+                if (lhsIsRecord) {
+                    lhsTypedefSymbol.setAliasedType(new QualType(
+                            "int",
+                            "int",
+                            "int diag_exporter_id",
+                            Qualifiers.unqualified(),
+                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                            null));
+
+                    lhsTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
+                }
+
+                if (rhsIsRecord) {
+                    rhsTypedefSymbol.setAliasedType(new QualType(
+                            "int",
+                            "int",
+                            "int diag_exporter_id",
+                            Qualifiers.unqualified(),
+                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                            null));
+
+                    rhsTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
+                }
+
+
+                /*if (lhsHasPointerOrArray && rhsHasBuiltInOrEnum) {
+
+                }*/
+
+                var commonPermittedTypes = new HashSet<>(lhsTypedefSymbol.permittedTypes());
+                commonPermittedTypes.retainAll(rhsTypedefSymbol.permittedTypes());
+
+
+                if (commonPermittedTypes.isEmpty()) {
+                    // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
+                    CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
+                    return;
+                }
+
+
+            }
+        }
+
+        // TODO for now assume that it's only number operands, and not _Bool operands
     }
 
     public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
@@ -343,24 +530,12 @@ public class MendingHandlers {
                     return;
                 }
 
-                var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
-                var structSymbol = new RecordSymbol(structType.name());
+                var memberTypedefSymbol = createTypedefOfGeneratedStructType(Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY,
+                        TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
 
-                var typedefType = new TypedefType(MendingTypeNameGenerator.newTypeName(), new QualType(
-                        "struct " + structType.name(),
-                        "struct " + structType.name(),
-                        "struct " + structType.name() + " diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        structType,
-                        null));
-
-                var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
-
-                var member = new RecordSymbol.Member(memberName, typedefType);
-                mendingTable.put(structSymbol);
-                mendingTable.put(typedefSymbol);
-                mendingTable.putTypeNameMapping(typedefType.name(), member);
+                var member = new RecordSymbol.Member(memberName, memberTypedefSymbol.typedefType());
                 recordSymbol.addMember(member);
+                mendingTable.putControlledTypedefAliasMapping(memberTypedefSymbol.typedefType().name(), member);
             }
                 break;
             default: {
@@ -369,50 +544,259 @@ public class MendingHandlers {
         }
    }
 
+    public static void handleErrUnknownTypename(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("Unknown typename");
+
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) {
+            CliReporting.error("Could not match diagnostic args for unknown typename");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for unknown typename");
+            return;
+        }
+
+        var typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
+
+        createTypedefOfGeneratedStructType(typedefName, Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY,
+                TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
+    }
+
+    public static void handleErrUnknownTypenameSuggest(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("Unknown typename with suggestion");
+
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) {
+            CliReporting.error("Could not match diagnostic args for unknown typename");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for unknown typename");
+            return;
+        }
+
+        var typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
+
+        createTypedefOfGeneratedStructType(typedefName, Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY,
+                TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
+    }
+
+    public static void handleErrTypecheckMemberReferenceSuggestion(Diagnostic dig, MendingTable mendingTable) {
+        System.out.println("[Member reference suggestion]");
+
+        if (!DiagnosticArgsMatcher.match(dig.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
+            CliReporting.error("Could not match diagnostic args for member reference suggestion");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for member reference suggestion");
+            return;
+        }
+
+        var qualType = ((QualTypeArg) dig.description().args().getFirst()).qualType();
+        var shouldBePointer = ((SIntArg) dig.description().args().get(1)).integer() == 1;
+
+        System.out.println("Type: " + qualType.typeAsString() + " (" + qualType.canonicalTypeAsString() + ")");
+        var typeName = qualType.typeName();
+        System.out.println("TypeName: " + typeName);
+        if (shouldBePointer) {
+            System.out.println("Should be pointer");
+            var typedefSymbol = mendingTable.typedefs().get(qualType.typeAsString());
+
+            typedefSymbol.setAliasedType(new QualType(
+                    typedefSymbol.typedefType().name(),
+                     qualType.canonicalTypeAsString() + " *",
+                    qualType.canonicalTypeAsString() + " *diag_exporter_id",
+                    Qualifiers.unqualified(),
+                    new PointerType(typedefSymbol.typedefType().aliasedType()),
+                    null));
+
+            typedefSymbol.setPermittedTypes(Set.of());
+        }
+    }
+
+    public static void handleErrTypecheckSubscriptValue(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[Subscript value]");
+
+        var codeSnippet = diag.codeSnippet();
+
+        var baseEncompassingCode = diag.sourceRanges().getFirst().encompassingCode();
+        var subscriptEncompassingCode = diag.sourceRanges().get(1).encompassingCode();
+
+        var baseAndSubscriptEncompassingCode = baseEncompassingCode + "[" + subscriptEncompassingCode + "]";
+        System.out.println("Base and subscript encompassing code: " + baseAndSubscriptEncompassingCode);
+        // var subscriptLoc = diag.location().isFileLoc()? diag.location().presumedLoc() : diag.location().expansionLoc();
+
+        // TODO for now we assume the entire subexpression is in the same line
+
+        var symbol = mendingTable.arraySubscriptToCorrespondingSymbol().get(baseEncompassingCode);
+
+        // TODO the level of spaghetti is incredible. probably needs AST to be able to handle this properly
+        // TODO Here we are assuming that we will only get generated structs as the type of the subscript base. will probably backfire
+
+        if (symbol != null) {
+            System.out.println("Found array subscript mapping for base: " + baseEncompassingCode);
+
+            if (symbol instanceof VariableSymbol variableSymbol) {
+                variableSymbol.type().setAliasedType(new QualType(
+                        variableSymbol.type().aliasedType().typeAsString() + " *",
+                        variableSymbol.type().aliasedType().canonicalTypeAsString() + " *",
+                        variableSymbol.type().aliasedType().canonicalTypeAsString() + " * diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new PointerType(variableSymbol.type().aliasedType()),
+                        null));
+                mendingTable.putControlledArraySubscriptMapping(baseAndSubscriptEncompassingCode, variableSymbol);
+            } else if (symbol instanceof FunctionSymbol functionSymbol) {
+                functionSymbol.returnType().setAliasedType(
+                        new QualType(
+                                functionSymbol.returnType().aliasedType().typeAsString() + " *",
+                                functionSymbol.returnType().aliasedType().canonicalTypeAsString() + " *",
+                                functionSymbol.returnType().aliasedType().canonicalTypeAsString() + " * diag_exporter_id",
+                                Qualifiers.unqualified(),
+                                new PointerType(functionSymbol.returnType().aliasedType()),
+                                null));
+                mendingTable.putControlledArraySubscriptMapping(baseAndSubscriptEncompassingCode, functionSymbol);
+            } else if (symbol instanceof RecordSymbol.Member memberSymbol) {
+                memberSymbol.type().setAliasedType(new QualType(
+                        memberSymbol.type().aliasedType().typeAsString() + " *",
+                        memberSymbol.type().aliasedType().canonicalTypeAsString() + " *",
+                        memberSymbol.type().aliasedType().canonicalTypeAsString() + " * diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new PointerType(memberSymbol.type().aliasedType()),
+                        null));
+                mendingTable.putControlledArraySubscriptMapping(baseAndSubscriptEncompassingCode, memberSymbol);
+            } else {
+                CliReporting.error("Unknown symbol type for subscript value");
+                Logging.FILE_LOGGER.error("Unknown symbol type for subscript value");
+            }
+        } else {
+            System.out.println("Did not find array subscript mapping for base: " + baseEncompassingCode);
+            var identifierPattern = Pattern.compile("([a-zA-Z_][a-zA-Z0-9_]*)");
+
+            var matcher = identifierPattern.matcher(baseEncompassingCode);
+
+            if (matcher.find()) {
+                var varName = matcher.group(1);
+
+                System.out.println(varName);
+
+                var varSymbol = mendingTable.variables().get(varName);
+
+                // TODO this is adding needless space between consecutive pointers
+
+                /*
+                varSymbol.type().setAliasedType(new QualType(
+                        varSymbol.type().aliasedType().typeAsString() + " *",
+                        varSymbol.type().aliasedType().canonicalTypeAsString() + " *",
+                        varSymbol.type().aliasedType().canonicalTypeAsString() + " * diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new PointerType(varSymbol.type().aliasedType()),
+                        null));
+                        */
+
+                var structType = varSymbol.type().aliasedType();
+
+                var structTypedefAliasSymbol = createTypedef(structType, Set.of(), mendingTable); // change set.of()
+
+                varSymbol.type().setAliasedType(
+                        new QualType(
+                                structTypedefAliasSymbol.typedefType().name() + " *",
+                                structTypedefAliasSymbol.typedefType().name() + " *",
+                                structTypedefAliasSymbol.typedefType().name() + " *diag_exporter_id",
+                                Qualifiers.unqualified(),
+                                new PointerType(new QualType(
+                                        structTypedefAliasSymbol.typedefType().name(),
+                                        structTypedefAliasSymbol.typedefType().aliasedType().canonicalTypeAsString(),
+                                        structTypedefAliasSymbol.typedefType().aliasedType().canonicalTypeAsString() + " diag_exporter_id",
+                                        Qualifiers.unqualified(),
+                                        structTypedefAliasSymbol.typedefType().aliasedType().type(),
+                                        null)),
+                                null)
+                );
+                /*var newTypedefAliasName = MendingTypeNameGenerator.newTypedefAliasName();
+
+                var newTypedefType = new TypedefType(newTypedefAliasName, new QualType(
+                        varSymbol.type().aliasedType().typeAsString() + " *",
+                        varSymbol.type().aliasedType().canonicalTypeAsString() + " *",
+                        varSymbol.type().aliasedType().canonicalTypeAsString() + " * diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new PointerType(varSymbol.type().aliasedType()),
+                        null));
+
+                var newTypedefSymbol = new TypedefSymbol(newTypedefAliasName, newTypedefType, Set.of());
+
+                varSymbol.type().setAliasedType(new QualType(
+                        newTypedefAliasName,
+                        newTypedefAliasName,
+                        newTypedefAliasName + " diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        newTypedefType,
+                        null
+                ));
+
+                mendingTable.put(newTypedefSymbol);
+                mendingTable.putControlledTypedefAliasMapping(newTypedefAliasName, varSymbol);*/
+                mendingTable.putControlledArraySubscriptMapping(baseAndSubscriptEncompassingCode, varSymbol);
+
+            } else {
+                CliReporting.error("Could not find variable name in subscript value");
+                Logging.FILE_LOGGER.error("Could not find variable name in subscript value");
+            }
+        }
+    }
+
+    public static void handleErrTypecheckSubscriptNotInteger(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[Subscript not integer]");
+
+        var a = diag;
+    }
+
     public static void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
-        CliReporting.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.description().message());
-        Logging.FILE_LOGGER.error("Unknown diagnostic ID '" + diag.id() + "' with message: " + diag.description().message());
+        CliReporting.error("Unknown diagnostic ID '" + diag.labelId().toUpperCase() + "(" + diag.id() + ")' with message: " + diag.description().message());
+        Logging.FILE_LOGGER.error("Unknown diagnostic ID '{}({})' with message: {}", diag.labelId().toUpperCase(), diag.id(), diag.description().message());
     }
 
-    public static void declareVar(String varName, MendingTable mendingTable) {
-        var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
-        var structSymbol = new RecordSymbol(structType.name());
+    public static void createMissingVariable(String varName, MendingTable mendingTable) {
+        var typedefSymbol = createTypedefOfGeneratedStructType(
+                Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY, TypeKind.RECORD,
+                        TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
 
-        var typedefType = new TypedefType(MendingTypeNameGenerator.newTypeName(), new QualType(
-                "struct " + structType.name(),
-                "struct " + structType.name(),
-                "struct " + structType.name() + " diag_exporter_id",
-                Qualifiers.unqualified(),
-                structType,
-                null));
+        var variable = new VariableSymbol(varName, typedefSymbol.typedefType());
 
-        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
-
-        var variable = new VariableSymbol(varName, typedefType);
-
-        mendingTable.put(structSymbol);
-        mendingTable.put(typedefSymbol);
         mendingTable.put(variable);
-        mendingTable.putTypeNameMapping(typedefType.name(), variable);
+        mendingTable.putControlledTypedefAliasMapping(typedefSymbol.typedefType().name(), variable);
     }
 
-    public static void declareTypedef(Diagnostic diag, MendingTable mendingTable) {
-        var typedefName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
+    // Used for when a symbol (i.e., variable, function, and struct member) is DECLARED in the code, but
+    //    their types are typedef names that are not defined in the code but are being used
+    // They ARE NOT generated typedef names, but struct types are created for them
+    public static TypedefSymbol createTypedefOfGeneratedStructType(
+            String typedefName, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
 
-        var structType = new RecordType(MendingTypeNameGenerator.newStructName(), RecordType.RecordKind.STRUCT);
+        var structType = new RecordType(MendingTypeNameGenerator.newTagTypeName(), RecordType.RecordKind.STRUCT);
         var structSymbol = new RecordSymbol(structType.name());
 
-        var typedefType = new TypedefType(typedefName, new QualType(
+        mendingTable.put(structSymbol);
+
+        return createTypedef(typedefName, new QualType(
                 "struct " + structType.name(),
                 "struct " + structType.name(),
                 "struct " + structType.name() + " diag_exporter_id",
                 Qualifiers.unqualified(),
                 structType,
-                null));
+                null), permittedTypes, mendingTable);
+    }
 
-        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType);
+    // Used for when a symbol (i.e., variable, function, and struct member) is NOT DECLARED in the code,
+    //    but is being used, and we need to create a new (starting/mock) type for it because we don't
+    //    know its type yet.
+    // They ARE generated typedef names, and struct types are created for them
+    public static TypedefSymbol createTypedefOfGeneratedStructType(
+            Set<TypeKind> permittedTypes, MendingTable mendingTable) {
+        return createTypedefOfGeneratedStructType(MendingTypeNameGenerator.newTypedefAliasName(), permittedTypes, mendingTable);
+    }
 
-        mendingTable.put(structSymbol);
+    public static TypedefSymbol createTypedef(String typedefName, QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
+        var typedefType = new TypedefType(typedefName, qualType);
+
+        var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType, permittedTypes);
+
         mendingTable.put(typedefSymbol);
+
+        return typedefSymbol;
+    }
+
+    public static TypedefSymbol createTypedef(QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
+        return createTypedef(MendingTypeNameGenerator.newTypedefAliasName(), qualType, permittedTypes, mendingTable);
     }
 }

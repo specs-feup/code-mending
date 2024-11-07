@@ -10,6 +10,7 @@ import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.Symbol;
 import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
+import pt.up.fe.specs.cmender.lang.type.TypeName;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -39,6 +40,8 @@ public class MendingTable {
     // TODO is this necessary? we can just use the typedefs map to change the aliased type
     private final Map<String, Symbol> typeNameToCorrespondingSymbol;
 
+    private final Map<String, Symbol> arraySubscriptToCorrespondingSymbol;
+
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
@@ -46,6 +49,7 @@ public class MendingTable {
         structs = new HashMap<>();
         enums = new HashMap<>();
         typeNameToCorrespondingSymbol = new HashMap<>();
+        arraySubscriptToCorrespondingSymbol = new HashMap<>();
     }
 
     public void put(VariableSymbol variable) {
@@ -68,8 +72,140 @@ public class MendingTable {
         enums.put(enumSymbol.name(), enumSymbol);
     }
 
-    public void putTypeNameMapping(String typeName, Symbol symbol) {
+    public void putControlledTypedefAliasMapping(String typeName, Symbol symbol) {
         typeNameToCorrespondingSymbol.put(typeName, symbol);
+    }
+
+    public void putControlledArraySubscriptMapping(String arraySubscript, Symbol symbol) {
+        arraySubscriptToCorrespondingSymbol.put(arraySubscript, symbol);
+    }
+
+    // 1) CONTROLLED TYPE SYMBOLS: symbols representing types that are used in the code but ARE NOT FULLY DEFINED.
+    //     As such, they need to be defined by this tool, which has the liberty to change their definitions if necessary.
+    //     They can be of two categories:
+    //       a) tags (i.e., structs, enums, and unions) that ARE NOT FULLY DEFINED but are used in the code.
+    //       b) typedef aliases that ARE NOT FULLY TYPE ALIASED but are used in the code.
+
+    // 2) CONTROLLED TAG SYMBOLS can be of two types:
+    //      a) NAMED in the code. We know what they are, and how their forward declaration looks like in the code.
+    //         They appear on non-type symbol declarations present in the code.
+    //              e.g., in 'struct A a;' where 'struct A' is not fully defined in the code, but we know it is a struct type.
+    //      b) UNNAMED in the code. We know they exist and are used, but we don't know what they are, and how their forward declaration looks like in the code.
+    //          They appear on missing non-type declarations in the code.
+    //              e.g., in 'a = b.memb' where 'b' is not declared but can be deduced that it is a variable whose type is a struct and 'memb' is a member of it.
+
+    // 3) CONTROLLED TYPEDEF ALIAS SYMBOLS:
+    //     Don't need the NAMED/UNNAMED distinction because they are always referred to by their alias name in the code. For missing variables,
+    //       functions, and struct members, when not declared, we can't distinguish that those symbols' types are indeed defined as typedef type aliases
+    //       or just tag types.
+    //     We only care what the name of the alias is used in the code but not defined, and what the underlying type is.
+
+    // 4) UNCONTROLLED TYPE SYMBOLS: symbols representing types that ARE FULLY DEFINED in the code.
+    //     As such, they don't need to be defined or changed by this tool (nor can't), and their definitions are the utmost source of truth.
+    //     Since we deal only with canonical types, we don't need to worry about aliases
+
+    // 5) Dealing with missing types:
+    //     a) All CONTROLLED and UNNAMED TAG SYMBOLS will first receive a generated tag type name that is unique (e.g., cmender_struct_type_0),
+    //
+
+
+
+    //  ) All controlled and UNNAMED tag types (and their derived types) will have a generated typedef alias name that is unique, where
+    //       the underlying type is aliased to this name, and able to be changed if necessary.
+
+    //  ) Controlled NAMED tags have significant of source of truth in the code, more so than the UNNAMED ones. This is true because if a non-type
+    //       symbol is declared in the code, and its type is fully named in the code, we can't really change the tag to another thing, only change its definition.
+    //       For unnamed tags, we can replace them by changing the underlying type of the typedef alias.
+    //       The same applies to non generated typedef aliases, as their name should be constant, but its underlying type can be changed.
+
+
+
+      //  ) Since they are declared in the code (or derived types which dont have that concept), we don't need to generate a name for them, nor change them
+    //        (e.g., by changing the underlying type of a typedef alias or add members to a tag type, or change the derived type).
+
+    //  )  undeclared symbols should converge to these types
+
+
+
+    // TODO think about derived types that mix controlled and uncontrolled tags and typedefs
+
+    // INSIGHT we can assume that if we don't find symbol with a lookup based on the typeName, then it's uncontrolled
+    //    because by the time we reach this point then the controlled types should have been added to the table
+    //    by the corresponding handlers and then can we use these lookups to determine if a type is controlled or not
+    //    on the handlers that change the types of the symbols
+
+    public boolean isControlled(TypeName typeName) {
+        return isControlledTagType(typeName) || isControlledTypedefAlias(typeName);
+    }
+
+    public boolean isControlledTagType(TypeName typeName) {
+        if (!typeName.isTag()) {
+            return false;
+        }
+
+        if (typeName.tagKind() == TypeName.TagTypeKind.STRUCT) {
+            return structs.containsKey(typeName.identifier());
+        }
+
+        if (typeName.tagKind() == TypeName.TagTypeKind.ENUM) {
+            return enums.containsKey(typeName.identifier());
+        }
+
+        return false;
+    }
+
+    public boolean isControlledTypedefAlias(TypeName typeName) {
+        return typeName.isTypedefAlias() && typedefs.containsKey(typeName.identifier());
+    }
+
+    public boolean isControlledAndNamedTagType(TypeName typeName) {
+        return isControlledTagType(typeName) && !MendingTypeNameGenerator.isGeneratedTagTypeName(typeName.identifier());
+    }
+
+    public boolean isControlledAndUnnamedTagType(TypeName typeName) {
+        return isControlledTagType(typeName) && MendingTypeNameGenerator.isGeneratedTagTypeName(typeName.identifier());
+    }
+
+    public boolean isControlledAndGeneratedTypedefAlias(TypeName typeName) {
+        return isControlledTypedefAlias(typeName) && MendingTypeNameGenerator.isGeneratedTypedefAliasName(typeName.identifier());
+    }
+
+    public boolean isControlledAndNotGeneratedTypedefAlias(TypeName typeName) {
+        return isControlledTypedefAlias(typeName) && !MendingTypeNameGenerator.isGeneratedTypedefAliasName(typeName.identifier());
+    }
+
+    public boolean isUncontrolled(TypeName typeName) {
+        // TODO Should we consider builtin types as uncontrolled? from the definition above it doesn't include
+        //     but it might be useful because they have equal source of truth
+        if (typeName.isBuiltin()) {
+            return true;
+        }
+
+        if (typeName.isTag()) {
+            return isUncontrolledTagType(typeName);
+        }
+
+        return isUncontrolledTypedefAlias(typeName);
+    }
+
+    public boolean isUncontrolledTagType(TypeName typeName) {
+        if (!typeName.isTag()) {
+            return false;
+        }
+
+        if (typeName.tagKind() == TypeName.TagTypeKind.STRUCT) {
+            return !structs.containsKey(typeName.identifier());
+        }
+
+        if (typeName.tagKind() == TypeName.TagTypeKind.ENUM) {
+            return !enums.containsKey(typeName.identifier());
+        }
+
+        return false;
+    }
+
+    public boolean isUncontrolledTypedefAlias(TypeName typeName) {
+        return typeName.isTypedefAlias() && !typedefs.containsKey(typeName.identifier());
     }
 
     // TODO we will also require symbols here which are already declared in the code
