@@ -212,14 +212,14 @@ ordered_json JsonDiagnosticConsumer::getDescriptionInfo(const clang::Diagnostic 
             case clang::DiagnosticsEngine::ak_sint: {
                 descriptionInfo["args"].push_back({
                     {"kind", "sint"},
-                    {"int", info.getArgSInt(i)}
+                    {"integer", info.getArgSInt(i)}
                 });
                 break;
             }
             case clang::DiagnosticsEngine::ak_uint: {
                 descriptionInfo["args"].push_back({
                     {"kind", "uint"},
-                    {"int", info.getArgUInt(i)}
+                    {"integer", info.getArgUInt(i)}
                 });
                 break;
             }
