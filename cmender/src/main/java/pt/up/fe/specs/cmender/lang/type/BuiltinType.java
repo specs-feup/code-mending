@@ -75,13 +75,13 @@ public record BuiltinType(
     }
 
     @Override
-    public boolean isIntegralType() {
+    public boolean isIntegralType() { // missing all the others
         return builtinKind == BuiltinKind.CHAR || builtinKind == BuiltinKind.SHORT
                 || builtinKind == BuiltinKind.INT || builtinKind == BuiltinKind.LONG;
     }
 
     @Override
-    public boolean isFloatingPointType() {
+    public boolean isFloatingPointType() { // missing all the others
         return builtinKind == BuiltinKind.FLOAT || builtinKind == BuiltinKind.DOUBLE;
     }
 
