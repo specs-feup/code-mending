@@ -74,7 +74,7 @@ public class ResultsExporter {
             // export diag results
 
             if (invocation.isOutputDiagsOutput()) {
-                var diagResults = Files.createDirectories(Paths.get(outputPath.toString(), "diagOutputs"));
+                var diagResults = Files.createDirectories(Paths.get(outputPath.toString(), "diagsOutputs"));
                 FileUtils.copyDirectory(new File(mendingDirData.diagsDirPath()), new File(diagResults.toString()));
                 //copyDir(Paths.get(mendingDirData.diagsDirPath()), diagResults);
             }

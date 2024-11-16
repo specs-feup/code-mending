@@ -68,7 +68,7 @@ public class CMenderDataManager {
         Path sourceFilePath = Paths.get(sourceFilePathStr);
         Path mendingDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString());
         Path includeDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "includes");
-        Path diagsDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "diagOutputs");
+        Path diagsDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "diagsOutputs");
 
         try {
             // TODO think of garbage collection of old mending directories (maybe temporary directories?)
