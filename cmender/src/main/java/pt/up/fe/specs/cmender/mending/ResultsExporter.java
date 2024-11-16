@@ -52,19 +52,9 @@ public class ResultsExporter {
                     Paths.get(outputPath.toString(), Paths.get(mendingDirData.sourceFileCopyPath()).getFileName().toString()),
                     StandardCopyOption.REPLACE_EXISTING);
 
-            Files.copy(
-                    Paths.get(mendingDirData.mendfilePath()),
-                    Paths.get(outputPath.toString(), Paths.get(mendingDirData.mendfilePath()).getFileName().toString()),
-                    StandardCopyOption.REPLACE_EXISTING);
 
-            Files.createDirectories(Paths.get(outputPath.toString(), "mendfileCopies"));
-
-            for (var mendfileCopy : mendingDirData.mendfileCopyPaths()) {
-                Files.copy(
-                        Paths.get(mendfileCopy),
-                        Paths.get(outputPath.toString(), "mendfileCopies", Paths.get(mendfileCopy).getFileName().toString()),
-                        StandardCopyOption.REPLACE_EXISTING);
-            }
+            var mendfileCopies = Files.createDirectories(Paths.get(outputPath.toString(), "mendfileCopies"));
+            FileUtils.copyDirectory(new File(mendingDirData.mendfileCopiesDirPath()), new File(mendfileCopies.toString()));
 
             // export includes
             var includes = Files.createDirectories(Paths.get(outputPath.toString(), "includes"));

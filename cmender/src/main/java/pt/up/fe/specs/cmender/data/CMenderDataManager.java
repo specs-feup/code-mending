@@ -69,6 +69,7 @@ public class CMenderDataManager {
         Path mendingDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString());
         Path includeDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "includes");
         Path diagsDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "diagsOutputs");
+        Path mendfileCopiesDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "mendfileCopies");
 
         try {
             // TODO think of garbage collection of old mending directories (maybe temporary directories?)
@@ -76,6 +77,7 @@ public class CMenderDataManager {
             Files.createDirectories(mendingDirPath);
             Files.createDirectories(includeDirPath);
             Files.createDirectories(diagsDirPath);
+            Files.createDirectories(mendfileCopiesDirPath);
 
             MENDING_DIRNAMES.put(sourceFilePathStr, mendingDirPath.getFileName().toString());
 
@@ -87,7 +89,7 @@ public class CMenderDataManager {
             BufferedReader reader = new BufferedReader(new FileReader(sourceFilePath.toFile()));
             writer.write(mendingDisclaimerInSource);
             writer.newLine();
-            writer.write("#include \"./" + mendfileName + ".h\"");
+            writer.write("#include \"" + mendfileName + ".h\"");
             writer.newLine();
             writer.newLine();
 
@@ -101,7 +103,7 @@ public class CMenderDataManager {
             reader.close();
 
             // Create the (empty) header file before any diag-exporter calls (to avoid missing header file error)
-            var headerFilePath = mendingDirPath.resolve(mendfileName + ".h");
+            var headerFilePath = includeDirPath.resolve(mendfileName + ".h");
             writer = new BufferedWriter(new FileWriter(headerFilePath.toFile()));
             writer.flush();
             writer.close();
@@ -113,10 +115,11 @@ public class CMenderDataManager {
                     .sourceFilePath(sourceFilePathStr)
                     .sourceFileCopyPath(sourceFileCopyPath.toFile().getCanonicalPath()) // TODO improve
                     .mendfilePath(headerFilePath.toFile().getCanonicalPath()) // TODO improve
+                    .diagsFilePath(diagsDirPath.resolve(diagsOutputFilename).toFile().getCanonicalPath()) // TODO improve
                     .mendfileCopyPaths(new ArrayList<>())
                     .includePath(includeDirPath.toFile().getCanonicalPath()) // TODO improve
-                    .diagsFilePath(diagsDirPath.resolve(diagsOutputFilename).toFile().getCanonicalPath()) // TODO improve
                     .diagsDirPath(diagsDirPath.toFile().getCanonicalPath()) // TODO improve
+                    .mendfileCopiesDirPath(mendfileCopiesDirPath.toFile().getCanonicalPath()) // TODO improve
                     .build();
             //return sourceFileCopyPath.toFile().getCanonicalPath();
         } catch (IOException e) {

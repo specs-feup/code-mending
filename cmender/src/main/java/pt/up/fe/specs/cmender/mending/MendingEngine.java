@@ -43,7 +43,7 @@ public class MendingEngine {
              */""";
 
     // because "mending" is the process, not the result. "mends" is the result
-    private static final String MENDFILE_NAME = "mends";
+    private static final String MENDFILE_NAME = "cmender_mends";
 
     private static final String MENDFILE_FILENAME = MENDFILE_NAME + ".h";
 
@@ -405,25 +405,24 @@ public class MendingEngine {
 
         return TimeMeasure.measureElapsed(() -> {
             try {
-                var mendingDirPath = Paths.get(sourceFileCopyPath).getParent();
+                var mendfile = Paths.get(mendingDirData.includePath(), MENDFILE_FILENAME).toFile();
 
-                var mendingFile = Paths.get(mendingDirPath.toString(), MENDFILE_FILENAME).toFile();
-
-                var writer = new BufferedWriter(new FileWriter(mendingFile));
+                var writer = new BufferedWriter(new FileWriter(mendfile));
 
                 writer.write(MENDING_DISCLAIMER_IN_HEADER);
                 writer.newLine();
                 table.writeSymbolDecls(writer);
 
                 if (menderInvocation.isCreateMendfileCopyPerIteration()) {
-                    var copyPath = Paths.get(mendingDirPath.toString(), MENDFILE_NAME + "_" + currentIteration + ".h").toFile();
+                    var mendfileCopyPath = Paths.get(mendingDirData.mendfileCopiesDirPath(), MENDFILE_NAME + "_" + currentIteration + ".h").toFile();
 
-                    Files.copy(mendingFile.toPath(), copyPath.toPath());
+                    Files.copy(mendfile.toPath(), mendfileCopyPath.toPath());
 
                     // TODO we shouldnt need to get the canonical path here. refactor when creating the CMender data path and mendingdirs
-                    mendingDirData.mendfileCopyPaths().add(copyPath.getCanonicalPath());
+                    mendingDirData.mendfileCopyPaths().add(mendfileCopyPath.getCanonicalPath());
                 }
             } catch (IOException e) {
+                // TODO differentiaite between file writing errors and file copying errors
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error("could not write mendfile: '%s'", MENDFILE_FILENAME);
             }
