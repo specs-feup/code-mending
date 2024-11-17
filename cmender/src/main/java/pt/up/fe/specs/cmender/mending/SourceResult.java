@@ -10,11 +10,13 @@ public record SourceResult(
 
         boolean success,
 
+        MendingEngineFatalException fatalException,
+
         long iterations,
 
         List<DiagnosticShortInfo> unknownDiags,
 
-        List<SourceIterationResult> iterationResults,
+        List<MendingIterationResult> iterationResults,
 
         // Total times in NS
         long totalTime,

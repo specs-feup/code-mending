@@ -245,7 +245,9 @@ public class MendingTable {
         var orderedSymbols = topologicalSort(depGraph);
 
         if (orderedSymbols == null) {
-            throw new IllegalStateException("Circular dependency detected");
+            throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDFILE_WRITER,
+                    "Circular dependency detected", 0); // TODO iteration
+            //throw new IllegalStateException("Circular dependency detected");
         }
 
         writeDecls(bufferedWriter, structsForForwardDecl);

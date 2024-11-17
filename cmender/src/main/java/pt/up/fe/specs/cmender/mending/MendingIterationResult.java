@@ -5,7 +5,7 @@ import lombok.Builder;
 import java.util.List;
 
 @Builder(toBuilder = true)
-public record SourceIterationResult(
+public record MendingIterationResult(
         int errorCount,
         int fatalCount,
         List<DiagnosticShortInfo> diags,

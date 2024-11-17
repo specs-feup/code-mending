@@ -79,20 +79,12 @@ public class MendingEngine {
             System.out.println(mendingDirData);
 
             if (mendingDirData == null) {
-                // TODO
                 continue;
             }
 
             mendingDirDatas.add(mendingDirData);
 
-            var sourceResult = mend(file, mendingDirData);
-
-            if (sourceResult == null) {
-                // TODO
-                continue;
-            }
-
-            sourceResults.add(sourceResult);
+            sourceResults.add(mend(file, mendingDirData));
         }
 
         var cmenderResult = CMenderResult.builder()
@@ -103,7 +95,7 @@ public class MendingEngine {
         return new MendingEngineBundle(cmenderResult, mendingDirDatas);
     }
 
-    private SourceResult mend(String sourceFile, MendingDirData mendingDirData/*String sourceFileCopy*/) {
+    private SourceResult mend(String sourceFile, MendingDirData mendingDirData) {
         String sourceFileCopy = mendingDirData.sourceFileCopyPath();
 
         var mendingTable = new MendingTable();
@@ -129,27 +121,45 @@ public class MendingEngine {
 
             List<DiagnosticShortInfo> unknownDiags = new ArrayList<>();
 
-            List<SourceIterationResult> iterationResults = new ArrayList<>();
+            List<MendingIterationResult> iterationResults = new ArrayList<>();
 
             while (!finished && currentIteration++ < maxTotalIterations) {
-                var sourceIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
+                MendingIterationResult mendingIterationResult = null;
+                try {
+                    mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
+                } catch (MendingEngineFatalException e) {
 
-                if (sourceIterationResult == null) {
-                    // TODO
-                    return null;
+                    return SourceResult.builder()
+                            .success(success)
+                            .fatalException(e)
+                            .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
+                            .unknownDiags(new ArrayList<>(unknownDiags))
+                            .iterationResults(iterationResults)
+
+                            // Total times in NS
+                            .diagExporterTotalTime(diagExporterTotalTime)
+                            .mendingTotalTime(mendingTotalTime)
+                            .mendfileWritingTotalTime(mendfileWritingTotalTime)
+
+                            // Total times in MS
+                            .diagExporterTotalTimeMs(TimeMeasure.milliseconds(diagExporterTotalTime))
+                            .mendingTotalTimeMs(TimeMeasure.milliseconds(mendingTotalTime))
+                            .mendfileWritingTotalTimeMs(TimeMeasure.milliseconds(mendfileWritingTotalTime))
+
+                            .build();
                 }
 
-                diagExporterTotalTime += sourceIterationResult.diagExporterTime();
-                mendingTotalTime += sourceIterationResult.mendingTime();
-                mendfileWritingTotalTime += sourceIterationResult.mendfileWritingTime();
+                diagExporterTotalTime += mendingIterationResult.diagExporterTime();
+                mendingTotalTime += mendingIterationResult.mendingTime();
+                mendfileWritingTotalTime += mendingIterationResult.mendfileWritingTime();
 
-                success = sourceIterationResult.mendResult().success();
-                finished = success || sourceIterationResult.mendResult().finishedPrematurely(menderInvocation);
+                success = mendingIterationResult.mendResult().success();
+                finished = success || mendingIterationResult.mendResult().finishedPrematurely(menderInvocation);
 
                 // TODO should we add the iteration results for the last iteration if it was successful?
-                unknownDiags.addAll(sourceIterationResult.mendResult().unknownDiags());
+                unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
 
-                iterationResults.add(sourceIterationResult);
+                iterationResults.add(mendingIterationResult);
             }
 
             return SourceResult.builder()
@@ -172,11 +182,6 @@ public class MendingEngine {
         });
 
         var result = timedSourceResult.result();
-
-        if (result == null) {
-            // TODO
-            return null;
-        }
 
         CliReporting.info("Source file '%s' was %s", sourceFileCopy, result.success() ? "successfully mended" : "unsuccessfully mended");
         Logging.FILE_LOGGER.info("source file '{}' was {}", sourceFileCopy, result.success() ? "successfully mended" : "unsuccessfully mended");
@@ -205,22 +210,17 @@ public class MendingEngine {
                 .build();
     }
 
-    private SourceIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration, MendingTable mendingTable) {
+    private MendingIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration, MendingTable mendingTable) {
         var timedResult = TimeMeasure.measureElapsed(() -> {
             long mendfileWritingTime = 0;
 
             TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData, currentIteration);
             DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
 
-            if (diagExporterResult == null) {
-                // TODO
-                return null;
-            }
-
             // Because we only process just one file at a time
             var firstSourceResult = diagExporterResult.sourceResults().getFirst();
 
-            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData);
+            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData, currentIteration);
             DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
 
             // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
@@ -234,7 +234,7 @@ public class MendingEngine {
                     .filter(Diagnostic::isErrorOrFatal)
                     .toList();
 
-            return SourceIterationResult.builder()
+            return MendingIterationResult.builder()
                     .errorCount(firstSourceResult.errorCount())
                     .fatalCount(firstSourceResult.fatalCount())
                     .diags(errorOrFatalDiags.stream().map(DiagnosticShortInfo::from).toList())
@@ -254,11 +254,6 @@ public class MendingEngine {
         });
 
         var result = timedResult.result();
-
-        if (result == null) {
-            // TODO
-            return null;
-        }
 
         var time = timedResult.elapsedTime();
         var otherTime = time - result.diagExporterTime() -
@@ -290,7 +285,6 @@ public class MendingEngine {
                                 .includePaths(List.of(mendingDirData.includePath()))
                                 .files(List.of(mendingDirData.sourceFileCopyPath()))
                                 .outputFilepath(mendingDirData.diagsFilePath())
-                                //.outputFilepath("./cmender_diags_output.json") // TODO change name
                                 .build());
 
                 // copy the diags output file for each iteration
@@ -306,96 +300,101 @@ public class MendingEngine {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not export Clang diagnostics from file: '%s'", mendingDirData.sourceFileCopyPath());
-                return null;
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.DIAG_EXPORTER, "could not export Clang diagnostics", iteration, e);
             } catch (IOException e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not copy diags output file for iteration %d", iteration);
-                return null;
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.DIAG_EXPORTER, "could not copy diags output file", iteration, e);
             }
         });
     }
 
     private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(
-            DiagExporterSingleSourceResult diagExporterSingleSourceResult, MendingTable mendingTable, MendingDirData mendingDirData) {
+            DiagExporterSingleSourceResult diagExporterSingleSourceResult, MendingTable mendingTable, MendingDirData mendingDirData, long iteration) {
         return TimeMeasure.measureElapsed(() -> {
-            // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
+            try {
+                // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
 
-            if (!diagExporterSingleSourceResult.hasErrorsOrFatals()) {
-                return DiagnosticMendResult.builder()
-                        .success(true)
-                        .unknownDiags(List.of())
-                        .mendedDiags(List.of())
-                        .build();
-            }
-
-            // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
-            // have been present on the original code
-
-            // TODO for now we don't have a need to to process notes, but they might be useful in the future
-
-            var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
-
-            System.out.println(">>> " + firstError);
-
-            var diagnosticID = DiagnosticID.fromIntID(firstError.id());
-
-            switch (diagnosticID) {
-                case DiagnosticID.UNKNOWN -> {
-                    MendingHandlers.handleUnknown(firstError, mendingTable);
+                if (!diagExporterSingleSourceResult.hasErrorsOrFatals()) {
                     return DiagnosticMendResult.builder()
-                            .success(false)
-                            .unknownDiags(List.of(DiagnosticShortInfo.from(firstError)))
+                            .success(true)
+                            .unknownDiags(List.of())
                             .mendedDiags(List.of())
                             .build();
                 }
-                case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
-                        MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
-                case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
-                        MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
-                case DiagnosticID.ERR_UNDECLARED_VAR_USE_SUGGEST ->
-                        MendingHandlers.handleErrUndeclaredVarUseSuggest(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
-                        MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->
-                        MendingHandlers.handleErrTypecheckInvalidOperands(firstError, mendingTable);
-                case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->
-                        MendingHandlers.handleErrPPFileNotFound(firstError, mendingTable, mendingDirData);
-                case DiagnosticID.ERR_TYPECHECK_DECL_INCOMPLETE_TYPE ->
-                        MendingHandlers.handleErrTypecheckDeclIncompleteType(firstError, mendingTable);
-                case DiagnosticID.ERR_NO_MEMBER ->
-                        MendingHandlers.handleErrNoMember(firstError, mendingTable);
-                case DiagnosticID.ERR_UNKNOWN_TYPENAME ->
-                        MendingHandlers.handleErrUnknownTypename(firstError, mendingTable);
-                case DiagnosticID.ERR_UNKNOWN_TYPENAME_SUGGEST ->
-                        MendingHandlers.handleErrUnknownTypenameSuggest(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_MEMBER_REFERENCE_SUGGESTION ->
-                        MendingHandlers.handleErrTypecheckMemberReferenceSuggestion(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_VALUE ->
-                        MendingHandlers.handleErrTypecheckSubscriptValue(firstError, mendingTable);
-                case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_NOT_INTEGER ->
-                        MendingHandlers.handleErrTypecheckSubscriptNotInteger(firstError, mendingTable);
+
+                // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
+                // have been present on the original code
+
+                // TODO for now we don't have a need to to process notes, but they might be useful in the future
+
+                var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
+
+                System.out.println(">>> " + firstError);
+
+                var diagnosticID = DiagnosticID.fromIntID(firstError.id());
+
+                switch (diagnosticID) {
+                    case DiagnosticID.UNKNOWN -> {
+                        MendingHandlers.handleUnknown(firstError, mendingTable);
+                        return DiagnosticMendResult.builder()
+                                .success(false)
+                                .unknownDiags(List.of(DiagnosticShortInfo.from(firstError)))
+                                .mendedDiags(List.of())
+                                .build();
+                    }
+                    case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
+                            MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
+                    case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
+                            MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
+                    case DiagnosticID.ERR_UNDECLARED_VAR_USE_SUGGEST ->
+                            MendingHandlers.handleErrUndeclaredVarUseSuggest(firstError, mendingTable);
+                    case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
+                            MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
+                    case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->
+                            MendingHandlers.handleErrTypecheckInvalidOperands(firstError, mendingTable);
+                    case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->
+                            MendingHandlers.handleErrPPFileNotFound(firstError, mendingTable, mendingDirData);
+                    case DiagnosticID.ERR_TYPECHECK_DECL_INCOMPLETE_TYPE ->
+                            MendingHandlers.handleErrTypecheckDeclIncompleteType(firstError, mendingTable);
+                    case DiagnosticID.ERR_NO_MEMBER ->
+                            MendingHandlers.handleErrNoMember(firstError, mendingTable);
+                    case DiagnosticID.ERR_UNKNOWN_TYPENAME ->
+                            MendingHandlers.handleErrUnknownTypename(firstError, mendingTable);
+                    case DiagnosticID.ERR_UNKNOWN_TYPENAME_SUGGEST ->
+                            MendingHandlers.handleErrUnknownTypenameSuggest(firstError, mendingTable);
+                    case DiagnosticID.ERR_TYPECHECK_MEMBER_REFERENCE_SUGGESTION ->
+                            MendingHandlers.handleErrTypecheckMemberReferenceSuggestion(firstError, mendingTable);
+                    case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_VALUE ->
+                            MendingHandlers.handleErrTypecheckSubscriptValue(firstError, mendingTable);
+                    case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_NOT_INTEGER ->
+                            MendingHandlers.handleErrTypecheckSubscriptNotInteger(firstError, mendingTable);
+                }
+                System.out.println();
+
+
+                // TODO improve? this success=false is misleading because it can be successful in the sense that it
+                //  processed the last diagnostic but we only know that next iteration after writing the mending file
+                //  and running the diag exporter again.
+                //  perhaps we just need to rename the field
+
+                return DiagnosticMendResult.builder()
+                        .success(false)
+                        .appliedMend(true)
+                        .unknownDiags(List.of())
+                        .mendedDiags(List.of(DiagnosticShortInfo.from(firstError)))
+                        .build();
+            } catch (Exception e) {
+                Logging.FILE_LOGGER.error(e.getMessage(), e);
+                CliReporting.error(e.getMessage());
+                CliReporting.error("could not process diagnostics from file: '%s'", mendingDirData.diagsFilePath());
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDING, "could not process diagnostics", iteration, e);
             }
-            System.out.println();
-
-
-            // TODO improve? this success=false is misleading because it can be successful in the sense that it
-            //  processed the last diagnostic but we only know that next iteration after writing the mending file
-            //  and running the diag exporter again.
-            //  perhaps we just need to rename the field
-
-            return DiagnosticMendResult.builder()
-                    .success(false)
-                    .appliedMend(true)
-                    .unknownDiags(List.of())
-                    .mendedDiags(List.of(DiagnosticShortInfo.from(firstError)))
-                    .build();
         });
     }
 
     private long writeMendfile(MendingTable table, MendingDirData mendingDirData, long currentIteration) {
-        var sourceFileCopyPath = mendingDirData.sourceFileCopyPath();
-
         return TimeMeasure.measureElapsed(() -> {
             try {
                 var mendfile = Paths.get(mendingDirData.includePath(), MENDFILE_FILENAME).toFile();
@@ -418,6 +417,7 @@ public class MendingEngine {
                 // TODO differentiaite between file writing errors and file copying errors
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error("could not write mendfile: '%s'", MENDFILE_FILENAME);
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDFILE_WRITER, "could not write mendfile", currentIteration, e);
             }
         });
     }
