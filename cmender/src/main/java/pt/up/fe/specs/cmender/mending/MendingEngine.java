@@ -230,14 +230,14 @@ public class MendingEngine {
                 mendfileWritingTime = writeMendfile(mendingTable, mendingDirData, currentIteration);
             }
 
-            var errorDiags = firstSourceResult.diags().stream()
-                    .filter(Diagnostic::isError)
+            var errorOrFatalDiags = firstSourceResult.diags().stream()
+                    .filter(Diagnostic::isErrorOrFatal)
                     .toList();
 
             return SourceIterationResult.builder()
                     .errorCount(firstSourceResult.errorCount())
                     .fatalCount(firstSourceResult.fatalCount())
-                    .diags(errorDiags.stream().map(DiagnosticShortInfo::from).toList())
+                    .diags(errorOrFatalDiags.stream().map(DiagnosticShortInfo::from).toList())
                     .mendResult(diagnosticMendingResult)
 
                     // Iteration times in NS
