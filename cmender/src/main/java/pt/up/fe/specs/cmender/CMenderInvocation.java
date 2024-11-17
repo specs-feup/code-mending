@@ -32,7 +32,7 @@ public class CMenderInvocation {
     private Integer maxTotalIterations = 1000;
 
     // If this is set, we create mendfile copies and export them in the output directory
-    // Another option for 'exportMendfileCopyPerIteration' is probably needless
+    // Another option for 'exportMendfileCopyPerIteration' needless here
     @Builder.Default
     private boolean createMendfileCopyPerIteration = false;
 

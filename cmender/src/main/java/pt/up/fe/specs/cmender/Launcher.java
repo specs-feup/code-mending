@@ -1,10 +1,15 @@
 package pt.up.fe.specs.cmender;
 
+import org.apache.commons.io.FileUtils;
 import pt.up.fe.specs.cmender.cli.CliArgsParser;
 import pt.up.fe.specs.cmender.cli.CliArgsParserException;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.logging.Logging;
 import pt.up.fe.specs.cmender.mending.MendingEngine;
+import pt.up.fe.specs.cmender.mending.ResultsExporter;
+
+import java.io.File;
+import java.io.IOException;
 
 // TODO replace Path.get() for concatenation of subpaths with resolve() as the latter seems robust and is able to normalize the path as well
 public class Launcher {
@@ -40,19 +45,22 @@ public class Launcher {
             System.exit(1);
         }
 
-        double diagExporterTotal = 0;
-        double total = 0;
-        int n = 1;
 
-        for (int i = 0; i < n; i++) {
-            var result = new MendingEngine(invocation).execute();
+        var bundle = new MendingEngine(invocation).execute();
 
-            //System.out.println(result);
-            //diagExporterTotal += result.diagExporterTotalTimeMs();
-            //total += result.totalTimeMs();
+        var result = bundle.cmenderResult();
+        var mendingDirDatas = bundle.mendingDirDatas();
+
+        ResultsExporter.exportResults(invocation, mendingDirDatas, result);
+
+        // delete the mending directory
+        for (var mendingDirData : mendingDirDatas) {
+            try {
+                FileUtils.deleteDirectory(new File(mendingDirData.dirPath()));
+            } catch (IOException e) {
+                CliReporting.error("Could not delete mending directory " + mendingDirData.dirPath());
+                Logging.FILE_LOGGER.error("Could not delete mending directory {}", mendingDirData.dirPath(), e);
+            }
         }
-
-        System.out.println("avg diag exporter total time: " + diagExporterTotal/n);
-        System.out.println("avg total time: " + total/n);
     }
 }

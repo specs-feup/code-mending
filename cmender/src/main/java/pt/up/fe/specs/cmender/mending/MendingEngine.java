@@ -1,6 +1,5 @@
 package pt.up.fe.specs.cmender.mending;
 
-import org.apache.commons.io.FileUtils;
 import pt.up.fe.specs.cmender.CMenderInvocation;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.CMenderDataManager;
@@ -56,7 +55,7 @@ public class MendingEngine {
         this.menderInvocation = menderInvocation;
     }
 
-    public CMenderResult execute() {
+    public MendingEngineBundle execute() {
         var files = getExistingValidFiles(getAbsolutePaths(menderInvocation.getFiles()));
 
         if (files.isEmpty()) {
@@ -65,49 +64,43 @@ public class MendingEngine {
             return null;
         }
 
-        CliReporting.warning("only one file is supported at the moment, the first file will be used");
-        Logging.FILE_LOGGER.warn("only one file is supported at the moment, the first file will be used");
-
-        // TODO support multiple files (also think if one diag-exporter invocation per file is the best approach
-        //  or have a single invocation for multiple files)
+        // TODO currently we have one diag-exporter invocation per file
+        //   We should support multiple files in a single invocation
+        //   It involves changing the logic the engine and exporting the mending dir
         // TODO how should multithreading be handled? (e.g., one thread per batch of files etc.)
 
-        var file = files.getFirst();
+        var sourceResults = new ArrayList<SourceResult>();
+        var mendingDirDatas = new ArrayList<MendingDirData>();
 
-        System.out.println(file);
+        for (var file : files) {
+            System.out.println(file);
 
-        /*var sourceFileCopy = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME);
+            var mendingDirData = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME, menderInvocation.getDiagsOutputFilename());
+            System.out.println(mendingDirData);
 
-        System.out.println(sourceFileCopy);
+            if (mendingDirData == null) {
+                // TODO
+                continue;
+            }
 
-        if (sourceFileCopy == null) {
-            return null;
-        }*/
+            mendingDirDatas.add(mendingDirData);
 
-        var mendingDirData = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME, menderInvocation.getDiagsOutputFilename());
+            var sourceResult = mend(file, mendingDirData);
 
-        System.out.println(mendingDirData);
+            if (sourceResult == null) {
+                // TODO
+                continue;
+            }
 
-        if (mendingDirData == null) {
-            return null;
+            sourceResults.add(sourceResult);
         }
 
         var cmenderResult = CMenderResult.builder()
                 .invocation(menderInvocation)
-                .sourceResults(List.of(mend(file, mendingDirData)))
+                .sourceResults(sourceResults)
                 .build();
 
-        ResultsExporter.exportResults(menderInvocation, mendingDirData, cmenderResult);
-
-        // delete the mending directory
-        try {
-            FileUtils.deleteDirectory(new File(mendingDirData.dirPath()));
-        } catch (IOException e) {
-            Logging.FILE_LOGGER.error(e.getMessage(), e);
-            CliReporting.error("could not delete mending directory: '%s'", mendingDirData.dirPath());
-        }
-
-        return cmenderResult;
+        return new MendingEngineBundle(cmenderResult, mendingDirDatas);
     }
 
     private SourceResult mend(String sourceFile, MendingDirData mendingDirData/*String sourceFileCopy*/) {
