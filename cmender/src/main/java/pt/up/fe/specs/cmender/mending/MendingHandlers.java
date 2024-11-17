@@ -242,7 +242,8 @@ public class MendingHandlers {
 
         var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
         var rhsQualType = ((QualTypeArg) diag.description().args().get(1)).qualType();
-        var op = diag.location().presumedLoc().encompassingCode();
+        //var op = diag.location().presumedLoc().encompassingCode();
+        var op = diag.location().isFileLoc()? diag.location().presumedLoc().encompassingCode() : diag.location().spellingLocs().getFirst().encompassingCode();
 
         System.out.println("lhsType: " + lhsQualType.typeAsString() + " (" + lhsQualType.canonicalTypeAsString() + ")");
         System.out.println("rhsType: " + rhsQualType.typeAsString() + " (" + rhsQualType.canonicalTypeAsString() + ")");
