@@ -11,7 +11,8 @@ public record DiagnosticMendResult(
         boolean success,
         boolean appliedMend,
         List<DiagnosticShortInfo> unknownDiags,
-        List<DiagnosticShortInfo> mendedDiags
+        List<DiagnosticShortInfo> mendedDiags,
+        boolean detectedCycle
 ) {
     // TODO isContinueOnUnknownDiagnostic must also make it so you skip the unknown diagnostics
     //   or else it will just keep trying to mend the same unknown diagnostic

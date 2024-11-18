@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.lang.symbol.EnumSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.FunctionSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
@@ -42,6 +43,8 @@ public class MendingTable {
 
     private final Map<String, Symbol> arraySubscriptToCorrespondingSymbol;
 
+    private final List<Diagnostic> handledDiagnostics;
+
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
@@ -50,6 +53,7 @@ public class MendingTable {
         enums = new HashMap<>();
         typeNameToCorrespondingSymbol = new HashMap<>();
         arraySubscriptToCorrespondingSymbol = new HashMap<>();
+        handledDiagnostics = new ArrayList<>();
     }
 
     public void put(VariableSymbol variable) {

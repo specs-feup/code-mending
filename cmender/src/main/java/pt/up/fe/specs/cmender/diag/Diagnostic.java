@@ -43,4 +43,17 @@ public record Diagnostic (
     public boolean isErrorOrFatal() {
         return isError() || isFatal();
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Diagnostic other)) {
+            return false;
+        }
+        return id == other.id
+                && description.message().equals(other.description.message())
+                && location.equals(other.location);
+    }
 }

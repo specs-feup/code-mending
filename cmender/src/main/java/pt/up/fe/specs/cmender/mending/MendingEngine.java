@@ -112,6 +112,7 @@ public class MendingEngine {
         var timedSourceResult = TimeMeasure.measureElapsed(() -> {
             var success = false;
             var finished = false;
+            var detectedLoop = false;
             var currentIteration = 0L;
 
             var diagExporterTotalTime = 0L;
@@ -123,7 +124,7 @@ public class MendingEngine {
 
             List<MendingIterationResult> iterationResults = new ArrayList<>();
 
-            while (!finished && currentIteration++ < maxTotalIterations) {
+            while (!finished && currentIteration++ < maxTotalIterations && !detectedLoop) {
                 MendingIterationResult mendingIterationResult = null;
                 try {
                     mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
@@ -160,6 +161,9 @@ public class MendingEngine {
                 unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
 
                 iterationResults.add(mendingIterationResult);
+
+                detectedLoop = mendingIterationResult.mendResult().detectedCycle();
+
             }
 
             return SourceResult.builder()
@@ -331,6 +335,17 @@ public class MendingEngine {
 
                 var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
 
+                if (mendingTable.handledDiagnostics().contains(firstError)) {
+                    return DiagnosticMendResult.builder()
+                            .success(false)
+                            .unknownDiags(List.of())
+                            .mendedDiags(List.of())
+                            .detectedCycle(true)
+                            .build();
+                }
+
+                mendingTable.handledDiagnostics().add(firstError);
+
                 System.out.println(">>> " + firstError);
 
                 var diagnosticID = DiagnosticID.fromIntID(firstError.id());
@@ -341,7 +356,7 @@ public class MendingEngine {
                         return DiagnosticMendResult.builder()
                                 .success(false)
                                 .unknownDiags(List.of(DiagnosticShortInfo.from(firstError)))
-                                .mendedDiags(List.of())
+                                .mendedDiags(List.of()) // TODO should be the one we selected
                                 .build();
                     }
                     case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
