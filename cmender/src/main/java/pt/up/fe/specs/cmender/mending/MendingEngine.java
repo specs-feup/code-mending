@@ -143,6 +143,7 @@ public class MendingEngine {
 
         var mendingTable = new MendingTable();
         var maxTotalIterations = menderInvocation.getMaxTotalIterations();
+        var lineCount = calculateLineCount(sourceFileCopy);
 
         // TODO think about stopping criteria (to avoid infinite loops)
         //  1) max number of total iterations (to avoid infinite loops) -> how do we decide the value? because it depends on the number of
@@ -169,7 +170,7 @@ public class MendingEngine {
             while (!finished && currentIteration++ < maxTotalIterations && !detectedLoop) {
                 MendingIterationResult mendingIterationResult = null;
                 try {
-                    mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
+                    mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable, lineCount);
                 } catch (MendingEngineFatalException e) {
 
                     return SourceResult.builder()
@@ -202,7 +203,7 @@ public class MendingEngine {
 
                 // TODO should we add the iteration results for the last iteration if it was successful?
 
-                var selectedDiags = mendingIterationResult.mendResult().selectedDiags();
+                /*var selectedDiags = mendingIterationResult.mendResult().selectedDiags();
 
                 for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
                    var unknownDiagInfo = selectedDiags.get(unknownDiagIdx);
@@ -211,7 +212,17 @@ public class MendingEngine {
 
                    unknownDiags.add(unknownDiagInfo);
 
+                }*/
+
+                for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
+                    var unknownDiagInfo = mendingIterationResult.diags().get(unknownDiagIdx);
+
+                    unknownDiagsFrequency.put(unknownDiagInfo.id(), unknownDiagsFrequency.getOrDefault(unknownDiagInfo.id(), 0) + 1);
+
+                    unknownDiags.add(unknownDiagInfo);
+
                 }
+
                 //unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
 
                 iterationResults.add(mendingIterationResult);
@@ -222,7 +233,7 @@ public class MendingEngine {
 
             return SourceResult.builder()
                     .success(success)
-                    .lineCount(calculateLineCount(sourceFileCopy))
+                    .lineCount(lineCount)
                     .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                     //.correctFromStart(success && currentIteration == 1)
                     .unknownDiags(new ArrayList<>(unknownDiags))
@@ -253,7 +264,7 @@ public class MendingEngine {
         return result.toBuilder()
                 .sourceFile(sourceFile)
 
-                .completionScore(calculateCompletionScore(result))
+                .completionScoreEstimate(result.success() ? 1.0 : result.iterationResults().getLast().mendResult().lineProgress())
 
                 // Total times in NS
                 .totalTime(totalTime)
@@ -283,19 +294,23 @@ public class MendingEngine {
         }
     }
 
-    private static double calculateCompletionScore(SourceResult sourceResult) {
-        if (sourceResult.success()) {
-            return 1.0;
-        }
 
-        var lastIteration = sourceResult.iterationResults().getLast();
-        var firstDiagnostic = lastIteration.mendResult().selectedDiags().getFirst();
+        // we don't calculate this based on the line of the last successful iteration
+        //    just the line of the last iteration that might have had an unhandled error.
 
-        return (double) firstDiagnostic.line() / (double) sourceResult.lineCount();
+        // This is because from the last successful line to the next line with an error to be handled
+        //    we have many lines of code that are not being processed (and can be correct)
 
-    }
+        // Still it's possible that we might go back to a previous line that was already processed
+        //     making this metric just an estimate of "how much of the code was processed and likely to be correct"
 
-    private MendingIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration, MendingTable mendingTable) {
+        // TODO Maybe we can mix this metric with the number of missing diagnostics (which also is an estimate because its not
+        //     guaranteed that the diagnostics will decrease with each iteration, and not cycle a bit)
+        // TODO maybe create metric of the cyclicity of the line of the first diagnostic
+
+
+    private MendingIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration,
+                                                    MendingTable mendingTable, long lineCount) {
         var timedResult = TimeMeasure.measureElapsed(() -> {
             long mendfileWritingTime = 0;
 
@@ -305,7 +320,7 @@ public class MendingEngine {
             // Because we only process just one file at a time
             var firstSourceResult = diagExporterResult.sourceResults().getFirst();
 
-            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData, currentIteration);
+            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData, currentIteration, lineCount);
             DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
 
             // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
@@ -396,12 +411,18 @@ public class MendingEngine {
     }
 
     private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(
-            DiagExporterSingleSourceResult diagExporterSingleSourceResult, MendingTable mendingTable, MendingDirData mendingDirData, long iteration) {
+            DiagExporterSingleSourceResult diagExporterSingleSourceResult,
+            MendingTable mendingTable, MendingDirData mendingDirData,
+            long iteration, long lineCount) {
         return TimeMeasure.measureElapsed(() -> {
             try {
                 // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
+                // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
+                // have been present on the original code
 
-                if (!diagExporterSingleSourceResult.hasErrorsOrFatals()) {
+                // TODO for now we don't have a need to to process notes, but they might be useful in the future
+
+                /*if (!diagExporterSingleSourceResult.hasErrorsOrFatals()) {
                     return DiagnosticMendResult.builder()
                             .success(true)
                             .unknownDiags(List.of())
@@ -409,21 +430,31 @@ public class MendingEngine {
                             .build();
                 }
 
-                // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
-                // have been present on the original code
-
-                // TODO for now we don't have a need to to process notes, but they might be useful in the future
-
                 var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
-
                 var selectedDiags = List.of(DiagnosticShortInfo.from(firstError));
+
+                */
+
+                var firstErrorIdx = diagExporterSingleSourceResult.getFirstOrFatalIdx();
+
+                if (firstErrorIdx == null) {
+                    return DiagnosticMendResult.builder()
+                            .success(true)
+                            .unknownDiags(List.of())
+                            .selectedDiags(List.of())
+                            .build();
+                }
+
+                var firstError = diagExporterSingleSourceResult.diags().get(firstErrorIdx);
+
+                var selectedDiags = List.of(firstErrorIdx);
 
                 if (mendingTable.handledDiagnostics().contains(firstError)) {
                     return DiagnosticMendResult.builder()
                             .success(false)
+                            .detectedCycle(true)
                             .unknownDiags(List.of())
                             .selectedDiags(List.of())
-                            .detectedCycle(true)
                             .build();
                 }
 
@@ -438,8 +469,9 @@ public class MendingEngine {
                         MendingHandlers.handleUnknown(firstError, mendingTable);
                         return DiagnosticMendResult.builder()
                                 .success(false)
-                                .unknownDiags(List.of(0))
-                                .selectedDiags(selectedDiags) // TODO should be the one we selected
+                                .selectedDiags(selectedDiags)
+                                .unknownDiags(List.of(firstErrorIdx))
+                                .lineProgress((double) DiagnosticShortInfo.from(firstError).line() / (double) lineCount)
                                 .build();
                     }
                     case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
@@ -480,8 +512,9 @@ public class MendingEngine {
                 return DiagnosticMendResult.builder()
                         .success(false)
                         .appliedMend(true)
-                        .unknownDiags(List.of())
                         .selectedDiags(selectedDiags)
+                        .unknownDiags(List.of())
+                        .lineProgress((double) DiagnosticShortInfo.from(firstError).line() / (double) lineCount)
                         .build();
             } catch (Exception e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);

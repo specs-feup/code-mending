@@ -23,4 +23,14 @@ public record DiagExporterSingleSourceResult(
                 .findFirst()
                 .orElse(null);
     }
+
+    public Integer getFirstOrFatalIdx() {
+        for (int i = 0; i < diags.size(); i++) {
+            if (diags.get(i).isErrorOrFatal()) {
+                return i;
+            }
+        }
+
+        return null;
+    }
 }
