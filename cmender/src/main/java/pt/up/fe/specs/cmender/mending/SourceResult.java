@@ -8,11 +8,17 @@ import java.util.List;
 public record SourceResult(
         String sourceFile,
 
+        long lineCount,
+
         boolean success,
+
+        //boolean correctFromStart,
 
         MendingEngineFatalException fatalException,
 
         long iterations,
+
+        double completionScore,
 
         List<DiagnosticShortInfo> unknownDiags,
 
@@ -37,4 +43,12 @@ public record SourceResult(
         double mendingTotalTimePercentage,
         double mendfileWritingTotalTimePercentage,
         double otherTotalTimePercentage
-) { }
+) {
+    /*public boolean isTrueSuccess() {
+        return success && !correctFromStart;
+    }
+
+    public boolean isTrueUnsuccessful() {
+        return !success && !correctFromStart;
+    }*/
+}

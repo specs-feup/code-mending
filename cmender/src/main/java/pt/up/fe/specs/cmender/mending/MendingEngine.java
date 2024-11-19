@@ -23,8 +23,10 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 public class MendingEngine {
     private static final String MENDING_DISCLAIMER_IN_SOURCE = """
@@ -50,9 +52,12 @@ public class MendingEngine {
 
     private final CMenderInvocation menderInvocation;
 
+    private final Map<String, Integer> unknownDiagsFrequency;
+
     public MendingEngine(CMenderInvocation menderInvocation) {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
+        this.unknownDiagsFrequency = new HashMap<>();
     }
 
     public MendingEngineBundle execute() {
@@ -79,7 +84,8 @@ public class MendingEngine {
             System.out.println(mendingDirData);
 
             if (mendingDirData == null) {
-                continue;
+                //continue;
+                throw new RuntimeException("mendingDirData is null");
             }
 
             mendingDirDatas.add(mendingDirData);
@@ -87,8 +93,45 @@ public class MendingEngine {
             sourceResults.add(mend(file, mendingDirData));
         }
 
+        /*if (sourceResults.size() != files.size()) {
+            CliReporting.warning("not all files were processed, exiting");
+            Logging.FILE_LOGGER.warn("not all files were processed, exiting");
+        }*/
+
+        /*var successCount = (int) sourceResults.stream().filter(SourceResult::success).count();
+
+        var trueSuccessCount = (int) sourceResults.stream().filter(SourceResult::isTrueSuccess).count();
+
+        var correctFromStartCount = successCount - trueSuccessCount;
+
+        var totalMendableFiles = files.size() - correctFromStartCount;
+
+        var unsuccessfulCount = (int) sourceResults.stream().filter(SourceResult::isTrueUnsuccessful).count();
+        var exceptionCount = (int) sourceResults.stream().filter(result -> result.fatalException() != null).count();*/
+
+        var successCount = (int) sourceResults.stream().filter(SourceResult::success).count();
+        var unsuccessfulCount = files.size() - successCount;
+        var exceptionCount = (int) sourceResults.stream().filter(result -> result.fatalException() != null).count();
+
         var cmenderReport = CMenderReport.builder()
                 .invocation(menderInvocation)
+                .totalFiles(files.size())
+                //.totalMendableFiles(totalMendableFiles)
+
+                .successCount(successCount)
+                //.trueSuccessCount(trueSuccessCount)
+                //.correctFromStartCount(correctFromStartCount)
+                .unsuccessfulCount(unsuccessfulCount)
+                .fatalExceptionCount(exceptionCount)
+
+                .successRatio((double) successCount / files.size())
+                //.trueSuccessRate((double) trueSuccessCount / totalMendableFiles)
+                //.correctFromStartRate((double) correctFromStartCount / files.size())
+                .unsuccessfulRatio((double) unsuccessfulCount / files.size())
+                .fatalExceptionRatio((double) exceptionCount / files.size())
+                .fatalExceptionOverUnsuccessfulRatio((double) exceptionCount / unsuccessfulCount)
+
+                .unknownDiagsFrequency(unknownDiagsFrequency)
                 .sourceResults(sourceResults)
                 .build();
 
@@ -119,7 +162,6 @@ public class MendingEngine {
             var mendingTotalTime = 0L;
             var mendfileWritingTotalTime = 0L;
 
-
             List<DiagnosticShortInfo> unknownDiags = new ArrayList<>();
 
             List<MendingIterationResult> iterationResults = new ArrayList<>();
@@ -131,7 +173,8 @@ public class MendingEngine {
                 } catch (MendingEngineFatalException e) {
 
                     return SourceResult.builder()
-                            .success(success)
+                            .success(false)
+                            //.correctFromStart(false)
                             .fatalException(e)
                             .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                             .unknownDiags(new ArrayList<>(unknownDiags))
@@ -158,7 +201,18 @@ public class MendingEngine {
                 finished = success || mendingIterationResult.mendResult().finishedPrematurely(menderInvocation);
 
                 // TODO should we add the iteration results for the last iteration if it was successful?
-                unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
+
+                var selectedDiags = mendingIterationResult.mendResult().selectedDiags();
+
+                for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
+                   var unknownDiagInfo = selectedDiags.get(unknownDiagIdx);
+
+                   unknownDiagsFrequency.put(unknownDiagInfo.id(), unknownDiagsFrequency.getOrDefault(unknownDiagInfo.id(), 0) + 1);
+
+                   unknownDiags.add(unknownDiagInfo);
+
+                }
+                //unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
 
                 iterationResults.add(mendingIterationResult);
 
@@ -168,7 +222,9 @@ public class MendingEngine {
 
             return SourceResult.builder()
                     .success(success)
+                    .lineCount(calculateLineCount(sourceFileCopy))
                     .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
+                    //.correctFromStart(success && currentIteration == 1)
                     .unknownDiags(new ArrayList<>(unknownDiags))
                     .iterationResults(iterationResults)
 
@@ -197,6 +253,8 @@ public class MendingEngine {
         return result.toBuilder()
                 .sourceFile(sourceFile)
 
+                .completionScore(calculateCompletionScore(result))
+
                 // Total times in NS
                 .totalTime(totalTime)
                 .otherTotalTime(otherTotalTime)
@@ -212,6 +270,29 @@ public class MendingEngine {
                 .otherTotalTimePercentage(TimeMeasure.percentage(totalTime, otherTotalTime))
 
                 .build();
+    }
+
+    private static long calculateLineCount(String sourceFileCopy) {
+        try {
+            return Files.lines(Paths.get(sourceFileCopy)).count();
+        } catch (IOException e) {
+            Logging.FILE_LOGGER.error(e.getMessage(), e);
+            CliReporting.error(e.getMessage());
+            CliReporting.error("could not count lines in file: '%s'", sourceFileCopy);
+            return 0;
+        }
+    }
+
+    private static double calculateCompletionScore(SourceResult sourceResult) {
+        if (sourceResult.success()) {
+            return 1.0;
+        }
+
+        var lastIteration = sourceResult.iterationResults().getLast();
+        var firstDiagnostic = lastIteration.mendResult().selectedDiags().getFirst();
+
+        return (double) firstDiagnostic.line() / (double) sourceResult.lineCount();
+
     }
 
     private MendingIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration, MendingTable mendingTable) {
@@ -324,7 +405,7 @@ public class MendingEngine {
                     return DiagnosticMendResult.builder()
                             .success(true)
                             .unknownDiags(List.of())
-                            .mendedDiags(List.of())
+                            .selectedDiags(List.of())
                             .build();
                 }
 
@@ -335,11 +416,13 @@ public class MendingEngine {
 
                 var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
 
+                var selectedDiags = List.of(DiagnosticShortInfo.from(firstError));
+
                 if (mendingTable.handledDiagnostics().contains(firstError)) {
                     return DiagnosticMendResult.builder()
                             .success(false)
                             .unknownDiags(List.of())
-                            .mendedDiags(List.of())
+                            .selectedDiags(List.of())
                             .detectedCycle(true)
                             .build();
                 }
@@ -355,8 +438,8 @@ public class MendingEngine {
                         MendingHandlers.handleUnknown(firstError, mendingTable);
                         return DiagnosticMendResult.builder()
                                 .success(false)
-                                .unknownDiags(List.of(DiagnosticShortInfo.from(firstError)))
-                                .mendedDiags(List.of()) // TODO should be the one we selected
+                                .unknownDiags(List.of(0))
+                                .selectedDiags(selectedDiags) // TODO should be the one we selected
                                 .build();
                     }
                     case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
@@ -398,7 +481,7 @@ public class MendingEngine {
                         .success(false)
                         .appliedMend(true)
                         .unknownDiags(List.of())
-                        .mendedDiags(List.of(DiagnosticShortInfo.from(firstError)))
+                        .selectedDiags(selectedDiags)
                         .build();
             } catch (Exception e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
