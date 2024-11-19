@@ -129,7 +129,7 @@ public class MendingEngine {
                 //.correctFromStartRate((double) correctFromStartCount / files.size())
                 .unsuccessfulRatio((double) unsuccessfulCount / files.size())
                 .fatalExceptionRatio((double) exceptionCount / files.size())
-                .fatalExceptionOverUnsuccessfulRatio((double) exceptionCount / unsuccessfulCount)
+                .fatalExceptionOverUnsuccessfulRatio(unsuccessfulCount == 0? 0.0 : (double) exceptionCount / unsuccessfulCount)
 
                 .unknownDiagsFrequency(unknownDiagsFrequency)
                 .sourceResults(sourceResults)
