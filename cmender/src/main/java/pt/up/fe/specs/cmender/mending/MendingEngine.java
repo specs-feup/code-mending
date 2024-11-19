@@ -87,12 +87,12 @@ public class MendingEngine {
             sourceResults.add(mend(file, mendingDirData));
         }
 
-        var cmenderResult = CMenderResult.builder()
+        var cmenderReport = CMenderReport.builder()
                 .invocation(menderInvocation)
                 .sourceResults(sourceResults)
                 .build();
 
-        return new MendingEngineBundle(cmenderResult, mendingDirDatas);
+        return new MendingEngineBundle(cmenderReport, mendingDirDatas);
     }
 
     private SourceResult mend(String sourceFile, MendingDirData mendingDirData) {

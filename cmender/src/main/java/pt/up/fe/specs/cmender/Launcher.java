@@ -48,10 +48,10 @@ public class Launcher {
 
         var bundle = new MendingEngine(invocation).execute();
 
-        var result = bundle.cmenderResult();
+        var report = bundle.cmenderReport();
         var mendingDirDatas = bundle.mendingDirDatas();
 
-        ResultsExporter.exportResults(invocation, mendingDirDatas, result);
+        ResultsExporter.exportResults(invocation, mendingDirDatas, report);
 
         // delete the mending directory
         for (var mendingDirData : mendingDirDatas) {

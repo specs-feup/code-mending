@@ -41,8 +41,8 @@ public class CliArgsParser {
     private static final String DIAGS_OUTPUT_FILENAME_SHORT = "dof";
     private static final String DIAGS_OUTPUT_FILENAME_LONG = "diags-output-filename";
 
-    private static final String RESULT_FILENAME_SHORT = "rf";
-    private static final String RESULT_FILENAME_LONG = "result-filename";
+    private static final String REPORT_FILENAME_SHORT = "rf";
+    private static final String REPORT_FILENAME_LONG = "report-filename";
 
     private static final String VERBOSE_SHORT = "v";
     private static final String VERBOSE_LONG = "verbose";
@@ -100,9 +100,9 @@ public class CliArgsParser {
                 .optionalArg(true)
                 .type(String.class)
                 .build())
-            .addOption(Option.builder(RESULT_FILENAME_SHORT)
-                .longOpt(RESULT_FILENAME_LONG)
-                .desc("Result filename")
+            .addOption(Option.builder(REPORT_FILENAME_SHORT)
+                .longOpt(REPORT_FILENAME_LONG)
+                .desc("Report filename")
                 .argName("filename")
                 .hasArg()
                 .optionalArg(true)
@@ -150,7 +150,7 @@ public class CliArgsParser {
                     .output(cmd.getOptionValue(OUTPUT_SHORT, "./output"))
                     .outputDiagsOutput(cmd.hasOption(OUTPUT_DIAGS_SHORT))
                     .diagsOutputFilename(cmd.getOptionValue(DIAGS_OUTPUT_FILENAME_SHORT, "cmender_diags_output.json"))
-                    .resultFilename(cmd.getOptionValue(RESULT_FILENAME_SHORT, "cmender_result.json"))
+                    .reportFilename(cmd.getOptionValue(REPORT_FILENAME_SHORT, "cmender_report.json"))
                     .files(List.of(files))
                     .build();
         } catch (ParseException e) {

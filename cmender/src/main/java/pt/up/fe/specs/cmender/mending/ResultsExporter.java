@@ -1,10 +1,6 @@
 package pt.up.fe.specs.cmender.mending;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.commons.io.FileUtils;
 
 import pt.up.fe.specs.cmender.CMenderInvocation;
@@ -30,12 +26,12 @@ public class ResultsExporter {
     // Results should be (so far taking account one source file):
     // - [default] the mendfile for the each source file + source file copy
     //           - [optional] mendfile copy of for each iteration
-    // - [default]  JSON file with the structured results from the mending process for each source file (e.g., time spent in each step, number of iterations, etc.)
+    // - [default]  JSON file with the structured report from the mending process for each source file (e.g., time spent in each step, number of iterations, etc.)
     // - [optional] JSON (or Yaml) file with the structured results from the diag-exporter process for each source file (e.g., the diagnostics for each source file)
     //           - [optional] copy for each iteration
 
 
-    public static void exportResults(CMenderInvocation invocation, List<MendingDirData> mendingDirDatas, CMenderResult result) {
+    public static void exportResults(CMenderInvocation invocation, List<MendingDirData> mendingDirDatas, CMenderReport report) {
         // TODO this code is really bad and messy. It should be refactored
         var outputPath = Paths.get(invocation.getOutput());
 
@@ -47,10 +43,10 @@ public class ResultsExporter {
             Files.createDirectories(outputPath);
 
             // TODO should we assume that the user will input the filename without the extension? or allow him to input the extension?
-            var resultFilename = invocation.getResultFilename().endsWith(".json") ? invocation.getResultFilename() : invocation.getResultFilename() + ".json";
-            var resultFilePath = outputPath.resolve(resultFilename);
+            var reportFilename = invocation.getReportFilename().endsWith(".json") ? invocation.getReportFilename() : invocation.getReportFilename() + ".json";
+            var reportFilePath = outputPath.resolve(reportFilename);
 
-            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(resultFilePath.toString()), result);
+            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(reportFilePath.toString()), report);
 
             for (var mendingDirData : mendingDirDatas) {
                 // NOTE we dont copy the temp dir straight to the output dir because of the invocation options
@@ -60,8 +56,8 @@ public class ResultsExporter {
         } catch (IOException e) {
             // TODO granular error messages and handling of fails
             e.printStackTrace();
-            CliReporting.error("Could not save result to " + invocation.getOutput());
-            Logging.FILE_LOGGER.error("Could not save result to {}", invocation.getOutput(), e);
+            CliReporting.error("Could not save report to " + invocation.getOutput());
+            Logging.FILE_LOGGER.error("Could not save report to {}", invocation.getOutput(), e);
         }
     }
 

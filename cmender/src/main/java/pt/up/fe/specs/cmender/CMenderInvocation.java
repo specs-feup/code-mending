@@ -3,7 +3,6 @@ package pt.up.fe.specs.cmender;
 import lombok.Builder;
 import lombok.ToString;
 import lombok.Getter;
-import pt.up.fe.specs.cmender.diag.DiagExporterInvocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +56,7 @@ public class CMenderInvocation {
     private String diagsOutputFilename = "cmender_diags_output.json"; // TODO
 
     @Builder.Default
-    private String resultFilename = "cmender_result.json"; // TODO
+    private String reportFilename = "cmender_report.json"; // TODO
 
     // TODO: Add support for mending in place (i.e., declarations on the source file)
     /*@Builder.Default
