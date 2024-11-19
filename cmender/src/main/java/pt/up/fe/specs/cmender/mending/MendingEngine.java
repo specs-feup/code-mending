@@ -264,7 +264,7 @@ public class MendingEngine {
         return result.toBuilder()
                 .sourceFile(sourceFile)
 
-                .completionScoreEstimate(result.success() ? 1.0 : result.iterationResults().getLast().mendResult().lineProgress())
+                .completionStatusEstimate(result.success() ? 1.0 : result.iterationResults().getLast().mendResult().lineProgress())
 
                 // Total times in NS
                 .totalTime(totalTime)

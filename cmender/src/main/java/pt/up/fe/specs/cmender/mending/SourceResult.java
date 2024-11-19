@@ -18,7 +18,7 @@ public record SourceResult(
 
         long iterations,
 
-        double completionScoreEstimate,
+        double completionStatusEstimate,
 
         List<DiagnosticShortInfo> unknownDiags,
 
