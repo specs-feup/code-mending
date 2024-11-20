@@ -178,9 +178,9 @@ public class MendingEngine {
                             .lineCount(lineCount)
                             //.correctFromStart(false)
                             .fatalException(e)
-                            .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
+                            .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                             .unknownDiags(new ArrayList<>(unknownDiags))
-                            .iterationResults(iterationResults)
+                            .mendingIterations(iterationResults)
 
                             // Total times in NS
                             .diagExporterTotalTime(diagExporterTotalTime)
@@ -235,10 +235,10 @@ public class MendingEngine {
             return SourceResult.builder()
                     .success(success)
                     .lineCount(lineCount)
-                    .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
+                    .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                     //.correctFromStart(success && currentIteration == 1)
                     .unknownDiags(new ArrayList<>(unknownDiags))
-                    .iterationResults(iterationResults)
+                    .mendingIterations(iterationResults)
 
                     // Total times in NS
                     .diagExporterTotalTime(diagExporterTotalTime)
@@ -265,7 +265,7 @@ public class MendingEngine {
         return result.toBuilder()
                 .sourceFile(sourceFile)
 
-                .completionStatusEstimate(result.success() ? 1.0 : result.iterationResults().getLast().mendResult().lineProgress())
+                .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().mendResult().lineProgress())
 
                 // Total times in NS
                 .totalTime(totalTime)

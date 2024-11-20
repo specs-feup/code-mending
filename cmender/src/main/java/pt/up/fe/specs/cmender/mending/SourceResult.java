@@ -16,13 +16,13 @@ public record SourceResult(
 
         MendingEngineFatalException fatalException,
 
-        long iterations,
+        long iterationCount,
 
         double completionStatusEstimate,
 
         List<DiagnosticShortInfo> unknownDiags,
 
-        List<MendingIterationResult> iterationResults,
+        List<MendingIterationResult> mendingIterations,
 
         // Total times in NS
         long totalTime,
