@@ -175,6 +175,7 @@ public class MendingEngine {
 
                     return SourceResult.builder()
                             .success(false)
+                            .lineCount(lineCount)
                             //.correctFromStart(false)
                             .fatalException(e)
                             .iterations(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
@@ -456,6 +457,7 @@ public class MendingEngine {
                             .detectedCycle(true)
                             .unknownDiags(List.of())
                             .selectedDiags(List.of())
+                            .lineProgress((double) DiagnosticShortInfo.from(firstError).line() / (double) lineCount)
                             .build();
                 }
 
