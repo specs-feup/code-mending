@@ -442,6 +442,7 @@ public class MendingEngine {
                             .success(true)
                             .unknownDiags(List.of())
                             .selectedDiags(List.of())
+                            .lineProgress(1.0)
                             .build();
                 }
 
