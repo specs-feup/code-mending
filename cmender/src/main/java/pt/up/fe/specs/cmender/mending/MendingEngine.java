@@ -54,10 +54,13 @@ public class MendingEngine {
 
     private final Map<String, Integer> unknownDiagsFrequency;
 
+    private final Map<String, List<DiagnosticShortInfo>> unknownDiagsInfo;
+
     public MendingEngine(CMenderInvocation menderInvocation) {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
         this.unknownDiagsFrequency = new HashMap<>();
+        this.unknownDiagsInfo = new HashMap<>();
     }
 
     public MendingEngineBundle execute() {
@@ -140,6 +143,7 @@ public class MendingEngine {
 
     private SourceResult mend(String sourceFile, MendingDirData mendingDirData) {
         String sourceFileCopy = mendingDirData.sourceFileCopyPath();
+        unknownDiagsInfo.put(sourceFileCopy, new ArrayList<>());
 
         var mendingTable = new MendingTable();
         var maxTotalIterations = menderInvocation.getMaxTotalIterations();
@@ -204,25 +208,18 @@ public class MendingEngine {
 
                 // TODO should we add the iteration results for the last iteration if it was successful?
 
-                /*var selectedDiags = mendingIterationResult.mendResult().selectedDiags();
-
-                for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
-                   var unknownDiagInfo = selectedDiags.get(unknownDiagIdx);
-
-                   unknownDiagsFrequency.put(unknownDiagInfo.id(), unknownDiagsFrequency.getOrDefault(unknownDiagInfo.id(), 0) + 1);
-
-                   unknownDiags.add(unknownDiagInfo);
-
-                }*/
-
-                for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
-                    var unknownDiagInfo = mendingIterationResult.diags().get(unknownDiagIdx);
-
-                    unknownDiagsFrequency.put(unknownDiagInfo.id(), unknownDiagsFrequency.getOrDefault(unknownDiagInfo.id(), 0) + 1);
-
-                    unknownDiags.add(unknownDiagInfo);
-
+                for (var unknownDiag : unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())) {
+                    unknownDiagsFrequency.put(unknownDiag.id(), unknownDiagsFrequency.getOrDefault(unknownDiag.line(), 0) + 1);
+                    unknownDiags.add(unknownDiag);
                 }
+
+                /*for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
+                    //var unknownDiagInfo = mendingIterationResult.diags().get(unknownDiagIdx);
+
+                    //unknownDiagsFrequency.put(unknownDiagInfo.id(), unknownDiagsFrequency.getOrDefault(unknownDiagInfo.id(), 0) + 1);
+
+                    //unknownDiags.add(unknownDiagInfo);
+                }*/
 
                 //unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
 
@@ -338,7 +335,6 @@ public class MendingEngine {
             return MendingIterationResult.builder()
                     .errorCount(firstSourceResult.errorCount())
                     .fatalCount(firstSourceResult.fatalCount())
-                    .diags(errorOrFatalDiags.stream().map(DiagnosticShortInfo::from).toList())
                     .mendResult(diagnosticMendingResult)
 
                     // Iteration times in NS
@@ -470,6 +466,7 @@ public class MendingEngine {
                 switch (diagnosticID) {
                     case DiagnosticID.UNKNOWN -> {
                         MendingHandlers.handleUnknown(firstError, mendingTable);
+                        unknownDiagsInfo.put(diagExporterSingleSourceResult.file(), List.of(DiagnosticShortInfo.from(firstError)));
                         return DiagnosticMendResult.builder()
                                 .success(false)
                                 .selectedDiags(selectedDiags)

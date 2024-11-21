@@ -8,7 +8,6 @@ import java.util.List;
 public record MendingIterationResult(
         int errorCount,
         int fatalCount,
-        List<DiagnosticShortInfo> diags,
         DiagnosticMendResult mendResult,
 
         // Iteration times in NS
