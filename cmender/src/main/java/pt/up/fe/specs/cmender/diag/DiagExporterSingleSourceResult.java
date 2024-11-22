@@ -4,6 +4,7 @@ import java.util.List;
 
 public record DiagExporterSingleSourceResult(
         String file,
+        long size,
         int totalDiagsCount,
         int ignoredCount,
         int noteCount,

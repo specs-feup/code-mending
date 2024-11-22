@@ -6,7 +6,8 @@ public record DiagnosticLocation(
         DiagnosticLocationType type,
         SourceLocation presumedLoc,
         SourceLocation expansionLoc,
-        List<SourceLocation> spellingLocs
+        List<SourceLocation> spellingLocs,
+        long fileOffset
 ) {
     public boolean isFileLoc() {
         return type == DiagnosticLocationType.FILE;

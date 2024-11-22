@@ -262,7 +262,7 @@ public class MendingEngine {
         return result.toBuilder()
                 .sourceFile(sourceFile)
 
-                .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().mendResult().lineProgress())
+                .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().mendResult().fileProgress())
 
                 // Total times in NS
                 .totalTime(totalTime)
@@ -439,7 +439,7 @@ public class MendingEngine {
                             .success(true)
                             .unknownDiags(List.of())
                             .selectedDiags(List.of())
-                            .lineProgress(1.0)
+                            .fileProgress(1.0)
                             .build();
                 }
 
@@ -453,7 +453,7 @@ public class MendingEngine {
                             .detectedCycle(true)
                             .unknownDiags(List.of())
                             .selectedDiags(List.of())
-                            .lineProgress((double) DiagnosticShortInfo.from(firstError).line() / (double) lineCount)
+                            .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSingleSourceResult.size())
                             .build();
                 }
 
@@ -471,7 +471,7 @@ public class MendingEngine {
                                 .success(false)
                                 .selectedDiags(selectedDiags)
                                 .unknownDiags(List.of(firstErrorIdx))
-                                .lineProgress((double) DiagnosticShortInfo.from(firstError).line() / (double) lineCount)
+                                .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSingleSourceResult.size())
                                 .build();
                     }
                     case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
@@ -514,7 +514,7 @@ public class MendingEngine {
                         .appliedMend(true)
                         .selectedDiags(selectedDiags)
                         .unknownDiags(List.of())
-                        .lineProgress((double) DiagnosticShortInfo.from(firstError).line() / (double) lineCount)
+                        .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSingleSourceResult.size())
                         .build();
             } catch (Exception e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);

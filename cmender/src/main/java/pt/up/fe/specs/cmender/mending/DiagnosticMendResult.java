@@ -13,7 +13,7 @@ public record DiagnosticMendResult(
         boolean detectedCycle,
         List<Integer> selectedDiags,
         List<Integer> unknownDiags,
-        double lineProgress // line of first selected diag / total lines
+        double fileProgress
 ) {
     // TODO isContinueOnUnknownDiagnostic must also make it so you skip the unknown diagnostics
     //   or else it will just keep trying to mend the same unknown diagnostic
