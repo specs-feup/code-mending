@@ -2,7 +2,7 @@ package pt.up.fe.specs.cmender.diag;
 
 import java.util.List;
 
-public record DiagExporterSingleSourceResult(
+public record DiagExporterSourceResult(
         String file,
         long size,
         int totalDiagsCount,

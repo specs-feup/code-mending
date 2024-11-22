@@ -8,7 +8,7 @@ import java.util.List;
 public record SourceResult(
         String sourceFile,
 
-        long lineCount,
+        long fileSize,
 
         boolean success,
 

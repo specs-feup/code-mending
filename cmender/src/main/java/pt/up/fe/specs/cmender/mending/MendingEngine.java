@@ -8,7 +8,7 @@ import pt.up.fe.specs.cmender.diag.DiagExporter;
 import pt.up.fe.specs.cmender.diag.DiagExporterException;
 import pt.up.fe.specs.cmender.diag.DiagExporterInvocation;
 import pt.up.fe.specs.cmender.diag.DiagExporterResult;
-import pt.up.fe.specs.cmender.diag.DiagExporterSingleSourceResult;
+import pt.up.fe.specs.cmender.diag.DiagExporterSourceResult;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.diag.DiagnosticID;
 import pt.up.fe.specs.cmender.logging.Logging;
@@ -56,11 +56,14 @@ public class MendingEngine {
 
     private final Map<String, List<DiagnosticShortInfo>> unknownDiagsInfo;
 
+    private final Map<String, Long> fileSizes;
+
     public MendingEngine(CMenderInvocation menderInvocation) {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
         this.unknownDiagsFrequency = new HashMap<>();
         this.unknownDiagsInfo = new HashMap<>();
+        this.fileSizes = new HashMap<>();
     }
 
     public MendingEngineBundle execute() {
@@ -147,7 +150,6 @@ public class MendingEngine {
 
         var mendingTable = new MendingTable();
         var maxTotalIterations = menderInvocation.getMaxTotalIterations();
-        var lineCount = calculateLineCount(sourceFileCopy);
 
         // TODO think about stopping criteria (to avoid infinite loops)
         //  1) max number of total iterations (to avoid infinite loops) -> how do we decide the value? because it depends on the number of
@@ -174,12 +176,12 @@ public class MendingEngine {
             while (!finished && currentIteration++ < maxTotalIterations && !detectedLoop) {
                 MendingIterationResult mendingIterationResult = null;
                 try {
-                    mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable, lineCount);
+                    mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
                 } catch (MendingEngineFatalException e) {
 
                     return SourceResult.builder()
                             .success(false)
-                            .lineCount(lineCount)
+                            .fileSize(fileSizes.get(sourceFileCopy))
                             //.correctFromStart(false)
                             .fatalException(e)
                             .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
@@ -231,7 +233,7 @@ public class MendingEngine {
 
             return SourceResult.builder()
                     .success(success)
-                    .lineCount(lineCount)
+                    .fileSize(fileSizes.get(sourceFileCopy))
                     .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                     //.correctFromStart(success && currentIteration == 1)
                     .unknownDiags(new ArrayList<>(unknownDiags))
@@ -281,18 +283,6 @@ public class MendingEngine {
                 .build();
     }
 
-    private static long calculateLineCount(String sourceFileCopy) {
-        try {
-            return Files.lines(Paths.get(sourceFileCopy)).count();
-        } catch (IOException e) {
-            Logging.FILE_LOGGER.error(e.getMessage(), e);
-            CliReporting.error(e.getMessage());
-            CliReporting.error("could not count lines in file: '%s'", sourceFileCopy);
-            return 0;
-        }
-    }
-
-
         // we don't calculate this based on the line of the last successful iteration
         //    just the line of the last iteration that might have had an unhandled error.
 
@@ -308,17 +298,19 @@ public class MendingEngine {
 
 
     private MendingIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration,
-                                                    MendingTable mendingTable, long lineCount) {
+                                                    MendingTable mendingTable) {
         var timedResult = TimeMeasure.measureElapsed(() -> {
             long mendfileWritingTime = 0;
 
             TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData, currentIteration);
             DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
 
+            fileSizes.put(mendingDirData.sourceFileCopyPath(), diagExporterResult.sourceResults().getFirst().size());
+
             // Because we only process just one file at a time
             var firstSourceResult = diagExporterResult.sourceResults().getFirst();
 
-            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData, currentIteration, lineCount);
+            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData, currentIteration);
             DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
 
             // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
@@ -408,9 +400,9 @@ public class MendingEngine {
     }
 
     private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(
-            DiagExporterSingleSourceResult diagExporterSingleSourceResult,
+            DiagExporterSourceResult diagExporterSourceResult,
             MendingTable mendingTable, MendingDirData mendingDirData,
-            long iteration, long lineCount) {
+            long iteration) {
         return TimeMeasure.measureElapsed(() -> {
             try {
                 // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
@@ -432,7 +424,7 @@ public class MendingEngine {
 
                 */
 
-                var firstErrorIdx = diagExporterSingleSourceResult.getFirstOrFatalIdx();
+                var firstErrorIdx = diagExporterSourceResult.getFirstOrFatalIdx();
 
                 if (firstErrorIdx == null) {
                     return DiagnosticMendResult.builder()
@@ -443,7 +435,7 @@ public class MendingEngine {
                             .build();
                 }
 
-                var firstError = diagExporterSingleSourceResult.diags().get(firstErrorIdx);
+                var firstError = diagExporterSourceResult.diags().get(firstErrorIdx);
 
                 var selectedDiags = List.of(firstErrorIdx);
 
@@ -453,7 +445,7 @@ public class MendingEngine {
                             .detectedCycle(true)
                             .unknownDiags(List.of())
                             .selectedDiags(List.of())
-                            .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSingleSourceResult.size())
+                            .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSourceResult.size())
                             .build();
                 }
 
@@ -466,12 +458,12 @@ public class MendingEngine {
                 switch (diagnosticID) {
                     case DiagnosticID.UNKNOWN -> {
                         MendingHandlers.handleUnknown(firstError, mendingTable);
-                        unknownDiagsInfo.put(diagExporterSingleSourceResult.file(), List.of(DiagnosticShortInfo.from(firstError)));
+                        unknownDiagsInfo.put(diagExporterSourceResult.file(), List.of(DiagnosticShortInfo.from(firstError)));
                         return DiagnosticMendResult.builder()
                                 .success(false)
                                 .selectedDiags(selectedDiags)
                                 .unknownDiags(List.of(firstErrorIdx))
-                                .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSingleSourceResult.size())
+                                .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSourceResult.size())
                                 .build();
                     }
                     case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
@@ -514,7 +506,7 @@ public class MendingEngine {
                         .appliedMend(true)
                         .selectedDiags(selectedDiags)
                         .unknownDiags(List.of())
-                        .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSingleSourceResult.size())
+                        .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSourceResult.size())
                         .build();
             } catch (Exception e) {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);

@@ -5,5 +5,5 @@ import java.util.List;
 // TODO maybe also have separate stdout and stderr
 public record DiagExporterResult(
         String processOutput,
-        List<DiagExporterSingleSourceResult> sourceResults
+        List<DiagExporterSourceResult> sourceResults
 ) { }

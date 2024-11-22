@@ -78,7 +78,7 @@ public class DiagExporter {
     }
 
     // TODO think if this should throw a IllegalStateException or a custom DiagExporterException
-    private static List<DiagExporterSingleSourceResult> readResults(String outputFilepath) {
+    private static List<DiagExporterSourceResult> readResults(String outputFilepath) {
         var mapper = new ObjectMapper();
 
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
