@@ -68,11 +68,15 @@ public:
     explicit JsonDiagnosticConsumer(clang::CompilerInstance &compilerInstance_)
                 : compilerInstance(compilerInstance_),
                     qualTypeJsonConverter(compilerInstance_.getASTContext()) {
+        const auto &sourceManager = compilerInstance.getSourceManager();
         const auto fileEntry =
-            compilerInstance.getSourceManager().getFileEntryForID(compilerInstance.getSourceManager().getMainFileID());
+            compilerInstance.getSourceManager().getFileEntryForID(sourceManager.getMainFileID());
+
+        const auto endLoc = sourceManager.getLocForEndOfFile(sourceManager.getMainFileID());
 
         diagsInfo = ordered_json::object({
             {"file", fileEntry? ordered_json(fileEntry->getName()) : ordered_json(nullptr)},
+            {"size", endLoc.isInvalid()? -1 : sourceManager.getDecomposedLoc(endLoc).second},
             {"totalDiagsCount", 0},
             {"ignoredCount", 0},
             {"noteCount", 0},

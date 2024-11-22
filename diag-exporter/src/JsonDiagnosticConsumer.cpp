@@ -356,6 +356,9 @@ ordered_json JsonDiagnosticConsumer::getDescriptionInfo(const clang::Diagnostic 
 }
 
 ordered_json JsonDiagnosticConsumer::getPresumedLocInfo(const clang::SourceLocation &sLoc, const clang::SourceManager &sManager) {
+    // TODO check if in the future we want use this to give the line and column and file
+    //   The presumed takes into account #line directives but we might want the spelling location instead
+    // Clang diagnostics use presumed for macros so we might continue to use it
     const auto presumedLocation = sManager.getPresumedLoc(sLoc);
 
     if (presumedLocation.isInvalid()) {
@@ -381,7 +384,8 @@ ordered_json JsonDiagnosticConsumer::getLocationInfo(const clang::Diagnostic &in
         {"type", sourceLoc.isInvalid()? "none" : sourceLoc.isFileID()? "file" : "macro"},
         {"presumedLoc", nullptr},
         {"expansionLoc", nullptr},
-        {"spellingLocs", nullptr}
+        {"spellingLocs", nullptr},
+        {"fileOffset", -1}
     });
 
     // Invalid SourceLocations are often used when events have no corresponding
@@ -398,6 +402,7 @@ ordered_json JsonDiagnosticConsumer::getLocationInfo(const clang::Diagnostic &in
                 sourceManager,
                 compilerInstance.getLangOpts());
             locationInfo["presumedLoc"] = presumedLocInfo;
+            locationInfo["fileOffset"] = sourceManager.getFileOffset(sourceLoc);
         }
     } else { // macro ID
         if (auto expansionLocInfo  = getPresumedLocInfo(sourceManager.getExpansionLoc(sourceLoc), sourceManager);
@@ -408,6 +413,7 @@ ordered_json JsonDiagnosticConsumer::getLocationInfo(const clang::Diagnostic &in
                 compilerInstance.getLangOpts());
             expansionLocInfo["encompassingCode"] = source;
             locationInfo["expansionLoc"] = expansionLocInfo;
+            locationInfo["fileOffset"] = sourceManager.getFileOffset(sourceManager.getExpansionLoc(sourceLoc));
         }
 
         locationInfo["spellingLocs"] = ordered_json::array();
