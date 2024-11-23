@@ -211,7 +211,7 @@ public class MendingEngine {
                 // TODO should we add the iteration results for the last iteration if it was successful?
 
                 for (var unknownDiag : unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())) {
-                    unknownDiagsFrequency.put(unknownDiag.id(), unknownDiagsFrequency.getOrDefault(unknownDiag.line(), 0) + 1);
+                    unknownDiagsFrequency.put(unknownDiag.id(), unknownDiagsFrequency.getOrDefault(unknownDiag.id(), 0) + 1);
                     unknownDiags.add(unknownDiag);
                 }
 
