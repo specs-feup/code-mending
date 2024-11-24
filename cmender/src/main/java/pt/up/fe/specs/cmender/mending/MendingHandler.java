@@ -18,7 +18,15 @@ import pt.up.fe.specs.cmender.lang.symbol.FunctionSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
-import pt.up.fe.specs.cmender.lang.type.*;
+import pt.up.fe.specs.cmender.lang.type.BuiltinType;
+import pt.up.fe.specs.cmender.lang.type.EnumType;
+import pt.up.fe.specs.cmender.lang.type.PointerType;
+import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.lang.type.Qualifiers;
+import pt.up.fe.specs.cmender.lang.type.RecordType;
+import pt.up.fe.specs.cmender.lang.type.TypeKind;
+import pt.up.fe.specs.cmender.lang.type.TypeName;
+import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.logging.Logging;
 
 import java.nio.file.Files;
@@ -30,7 +38,8 @@ import java.util.regex.Pattern;
 
 // TODO delete all types that arent being used (should only be deleted if there are no usages of it)
 
-public class MendingHandlers {
+public interface MendingHandler {
+    DiagnosticMendResult mend(List<Diagnostic> selectedDiags, MendingTable mendingTable, MendingDirData mendingDirData);
 
     // When we don't know a symbol's type, we create a new starting type (mock type), which will be replaced later
     //    when we get more information about the symbol from the diagnostics
@@ -49,7 +58,7 @@ public class MendingHandlers {
 
     // TODO find if we can have the handlers as objects (also they can be placed in the enum DiagnosticID)
     //  or in terms of performance it is better to have them as static methods
-    public static void handleExtImplicitFunctionDeclC99(Diagnostic diag, MendingTable mendingTable) {
+    default void declareFunctionHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("[C99 implicit function declaration]");
 
         String functionName;
@@ -72,21 +81,21 @@ public class MendingHandlers {
 
         // typedef void cmender_type_0; is valid C code, so we can add the typedef of a void to the mending table
         var typedefSymbol = createTypedef(returnQualType, new HashSet<>(List.of(
-                    TypeKind.BUILTIN,
-                    TypeKind.POINTER,
-                    TypeKind.ARRAY,
-                    TypeKind.RECORD,
-                    TypeKind.ENUM,
-                    TypeKind.TYPEDEF,
-                    TypeKind.FUNCTION
-            )), mendingTable);
+                TypeKind.BUILTIN,
+                TypeKind.POINTER,
+                TypeKind.ARRAY,
+                TypeKind.RECORD,
+                TypeKind.ENUM,
+                TypeKind.TYPEDEF,
+                TypeKind.FUNCTION
+        )), mendingTable);
         var function = new FunctionSymbol(functionName, typedefSymbol.typedefType());
 
         mendingTable.put(function);
         mendingTable.putControlledTypedefAliasMapping(typedefSymbol.typedefType().name(), function);
     }
 
-    public static void handleErrUndeclaredVarUse(Diagnostic diag, MendingTable mendingTable) {
+     default void declareVariableHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Undeclared variable use");
         // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
 
@@ -100,7 +109,7 @@ public class MendingHandlers {
         }
     }
 
-    public static void handleErrUndeclaredVarUseSuggest(Diagnostic diag, MendingTable mendingTable) {
+     default void declareVariableSuggestHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Undeclared variable use with suggestion");
         // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
 
@@ -119,7 +128,7 @@ public class MendingHandlers {
         createMissingVariable(varName, mendingTable);
     }
 
-    public static void handleErrTypecheckConvertIncompatible(Diagnostic diag, MendingTable mendingTable) {
+     default void adjustConversionTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
         // TODO conversions of return types are not being handled (return type is source of truth)
         System.out.println("[Incompatible type conversion]");
         // FIXME non generated typedef names are not being taken into account
@@ -229,7 +238,7 @@ public class MendingHandlers {
         // TODO multiple declarator
     }
 
-    public static void handleErrTypecheckInvalidOperands(Diagnostic diag, MendingTable mendingTable) {
+     default void adjustOperandTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
         // TODO unary operations are not being handled
         // TODO in "==" operation, both operands can be pointers
         System.out.println("[Invalid operands]");
@@ -281,7 +290,7 @@ public class MendingHandlers {
     }
 
 
-    private static void handleInvalidOperandsWithOneSideSourceOfTruth(
+    private  void handleInvalidOperandsWithOneSideSourceOfTruth(
             QualType lhsQualType,
             QualType rhsQualType,
             boolean lhsIsSourceOfTruth,
@@ -386,7 +395,7 @@ public class MendingHandlers {
         }
     }
 
-    private static void handleInvalidOperandsWithNoSideSourceOfTruth(
+    private  void handleInvalidOperandsWithNoSideSourceOfTruth(
             QualType lhsQualType,
             QualType rhsQualType,
             TypeName lhsTypeName,
@@ -503,37 +512,37 @@ public class MendingHandlers {
         }
     }
 
-    public static void handleErrPPFileNotFound(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
-       System.out.println("File not found");
+     default void createHeaderFileHeuristic(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
+        System.out.println("File not found");
 
-       // INSIGHT: This diagnostic's level is fatal by default. clang will stop the compilation process if this diagnostic is raised
-       var includePath = mendingDirData.includePath();
+        // INSIGHT: This diagnostic's level is fatal by default. clang will stop the compilation process if this diagnostic is raised
+        var includePath = mendingDirData.includePath();
 
-       try {
+        try {
 
-           if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(StdStringArg.class))) {
-               CliReporting.error("Could not match diagnostic args for file not found");
-               Logging.FILE_LOGGER.error("Could not match diagnostic args for file not found");
-               return;
-           }
+            if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(StdStringArg.class))) {
+                CliReporting.error("Could not match diagnostic args for file not found");
+                Logging.FILE_LOGGER.error("Could not match diagnostic args for file not found");
+                return;
+            }
 
-           var stdStringArg = (StdStringArg) diag.description().args().getFirst();
+            var stdStringArg = (StdStringArg) diag.description().args().getFirst();
 
-           var headerFilePath = Paths.get(includePath, stdStringArg.string());
+            var headerFilePath = Paths.get(includePath, stdStringArg.string());
 
-           Files.createDirectories(headerFilePath.getParent());
+            Files.createDirectories(headerFilePath.getParent());
 
-           Files.createFile(headerFilePath);
-       } catch (Exception e) {
-           CliReporting.error("Failed to handle file not found: " + e.getMessage());
-           Logging.FILE_LOGGER.error("Failed to handle file not found: {}", e.getMessage());
-       }
+            Files.createFile(headerFilePath);
+        } catch (Exception e) {
+            CliReporting.error("Failed to handle file not found: " + e.getMessage());
+            Logging.FILE_LOGGER.error("Failed to handle file not found: {}", e.getMessage());
+        }
 
-       // TODO we can try to find the file in the include paths and add it to the mending table
+        // TODO we can try to find the file in the include paths and add it to the mending table
 
-   }
+    }
 
-    public static void handleErrTypecheckDeclIncompleteType(Diagnostic diag, MendingTable mendingTable) {
+     default void defineTagTypeHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Incomplete type declaration");
 
         // Most certainly this diagnostic only happens if the type is one whose name we dont control
@@ -564,9 +573,9 @@ public class MendingHandlers {
             CliReporting.error("Incomplete type declaration for non-record and non-enum type");
             Logging.FILE_LOGGER.error("Incomplete type declaration for non-record and non-enum type");
         }
-   }
+    }
 
-    public static void handleErrNoMember(Diagnostic diag, MendingTable mendingTable) {
+     default void addStructMemberHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("No member");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, DeclContextArg.class))) {
@@ -603,14 +612,14 @@ public class MendingHandlers {
                 recordSymbol.addMember(member);
                 mendingTable.putControlledTypedefAliasMapping(memberTypedefSymbol.typedefType().name(), member);
             }
-                break;
+            break;
             default: {
                 return;
             }
         }
-   }
+    }
 
-    public static void handleErrUnknownTypename(Diagnostic diag, MendingTable mendingTable) {
+     default void createTypedefTypeAliasHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Unknown typename");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) {
@@ -625,7 +634,7 @@ public class MendingHandlers {
                 TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
     }
 
-    public static void handleErrUnknownTypenameSuggest(Diagnostic diag, MendingTable mendingTable) {
+     default void createTypedefTypeAliasSuggestHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Unknown typename with suggestion");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) {
@@ -640,7 +649,7 @@ public class MendingHandlers {
                 TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
     }
 
-    public static void handleErrTypecheckMemberReferenceSuggestion(Diagnostic dig, MendingTable mendingTable) {
+     default void adjustMemberReferenceHeuristic(Diagnostic dig, MendingTable mendingTable) {
         System.out.println("[Member reference suggestion]");
 
         if (!DiagnosticArgsMatcher.match(dig.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
@@ -661,7 +670,7 @@ public class MendingHandlers {
 
             typedefSymbol.setAliasedType(new QualType(
                     typedefSymbol.typedefType().name(),
-                     qualType.canonicalTypeAsString() + " *",
+                    qualType.canonicalTypeAsString() + " *",
                     qualType.canonicalTypeAsString() + " *diag_exporter_id",
                     Qualifiers.unqualified(),
                     new PointerType(typedefSymbol.typedefType().aliasedType()),
@@ -671,7 +680,7 @@ public class MendingHandlers {
         }
     }
 
-    public static void handleErrTypecheckSubscriptValue(Diagnostic diag, MendingTable mendingTable) {
+     default void adjustSubscriptBaseHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("[Subscript value]");
 
         var codeSnippet = diag.codeSnippet();
@@ -801,18 +810,18 @@ public class MendingHandlers {
         }
     }
 
-    public static void handleErrTypecheckSubscriptNotInteger(Diagnostic diag, MendingTable mendingTable) {
+     default void convertSubscriptToIntegerHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("[Subscript not integer]");
 
         var a = diag;
     }
 
-    public static void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
+     default void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
         CliReporting.error("Unknown diagnostic ID '" + diag.labelId().toUpperCase() + "(" + diag.id() + ")' with message: " + diag.description().message());
         Logging.FILE_LOGGER.error("Unknown diagnostic ID '{}({})' with message: {}", diag.labelId().toUpperCase(), diag.id(), diag.description().message());
     }
 
-    public static void createMissingVariable(String varName, MendingTable mendingTable) {
+     default void createMissingVariable(String varName, MendingTable mendingTable) {
         var typedefSymbol = createTypedefOfGeneratedStructType(
                 Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY, TypeKind.RECORD,
                         TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
@@ -826,7 +835,7 @@ public class MendingHandlers {
     // Used for when a symbol (i.e., variable, function, and struct member) is DECLARED in the code, but
     //    their types are typedef names that are not defined in the code but are being used
     // They ARE NOT generated typedef names, but struct types are created for them
-    public static TypedefSymbol createTypedefOfGeneratedStructType(
+     static TypedefSymbol createTypedefOfGeneratedStructType(
             String typedefName, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
 
         var structType = new RecordType(MendingTypeNameGenerator.newTagTypeName(), RecordType.RecordKind.STRUCT);
@@ -847,12 +856,12 @@ public class MendingHandlers {
     //    but is being used, and we need to create a new (starting/mock) type for it because we don't
     //    know its type yet.
     // They ARE generated typedef names, and struct types are created for them
-    public static TypedefSymbol createTypedefOfGeneratedStructType(
+     static TypedefSymbol createTypedefOfGeneratedStructType(
             Set<TypeKind> permittedTypes, MendingTable mendingTable) {
         return createTypedefOfGeneratedStructType(MendingTypeNameGenerator.newTypedefAliasName(), permittedTypes, mendingTable);
     }
 
-    public static TypedefSymbol createTypedef(String typedefName, QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
+     static TypedefSymbol createTypedef(String typedefName, QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
         var typedefType = new TypedefType(typedefName, qualType);
 
         var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType, permittedTypes);
@@ -862,7 +871,7 @@ public class MendingHandlers {
         return typedefSymbol;
     }
 
-    public static TypedefSymbol createTypedef(QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
+    static TypedefSymbol createTypedef(QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
         return createTypedef(MendingTypeNameGenerator.newTypedefAliasName(), qualType, permittedTypes, mendingTable);
     }
 }

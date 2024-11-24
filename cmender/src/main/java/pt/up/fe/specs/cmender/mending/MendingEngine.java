@@ -12,6 +12,8 @@ import pt.up.fe.specs.cmender.diag.DiagExporterSourceResult;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.diag.DiagnosticID;
 import pt.up.fe.specs.cmender.logging.Logging;
+import pt.up.fe.specs.cmender.utils.SizeBundle;
+import pt.up.fe.specs.cmender.utils.TimeBundle;
 import pt.up.fe.specs.cmender.utils.TimeMeasure;
 import pt.up.fe.specs.cmender.utils.TimedResult;
 
@@ -58,12 +60,18 @@ public class MendingEngine {
 
     private final Map<String, Long> fileSizes;
 
+    private final DiagnosticAnalysis diagnosticAnalysis;
+
+    private final MendingHandler mendingHandler;
+
     public MendingEngine(CMenderInvocation menderInvocation) {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
         this.unknownDiagsFrequency = new HashMap<>();
         this.unknownDiagsInfo = new HashMap<>();
         this.fileSizes = new HashMap<>();
+        this.diagnosticAnalysis = new FirstErrorAnalysis();
+        this.mendingHandler = new SequentialMendingHandler();
     }
 
     public MendingEngineBundle execute() {
@@ -125,14 +133,10 @@ public class MendingEngine {
                 //.totalMendableFiles(totalMendableFiles)
 
                 .successCount(successCount)
-                //.trueSuccessCount(trueSuccessCount)
-                //.correctFromStartCount(correctFromStartCount)
                 .unsuccessfulCount(unsuccessfulCount)
                 .fatalExceptionCount(exceptionCount)
 
                 .successRatio((double) successCount / files.size())
-                //.trueSuccessRate((double) trueSuccessCount / totalMendableFiles)
-                //.correctFromStartRate((double) correctFromStartCount / files.size())
                 .unsuccessfulRatio((double) unsuccessfulCount / files.size())
                 .fatalExceptionRatio((double) exceptionCount / files.size())
                 .fatalExceptionOverUnsuccessfulRatio(unsuccessfulCount == 0? 0.0 : (double) exceptionCount / unsuccessfulCount)
@@ -166,8 +170,8 @@ public class MendingEngine {
             var currentIteration = 0L;
 
             var diagExporterTotalTime = 0L;
-            var mendingTotalTime = 0L;
-            var mendfileWritingTotalTime = 0L;
+            // var mendingTotalTime = 0L;
+            // var mendfileWritingTotalTime = 0L;
 
             List<DiagnosticShortInfo> unknownDiags = new ArrayList<>();
 
@@ -181,74 +185,37 @@ public class MendingEngine {
 
                     return SourceResult.builder()
                             .success(false)
-                            .fileSize(fileSizes.get(sourceFileCopy))
-                            //.correctFromStart(false)
+                            .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
                             .fatalException(e)
                             .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
                             .unknownDiags(new ArrayList<>(unknownDiags))
                             .mendingIterations(iterationResults)
-
-                            // Total times in NS
-                            .diagExporterTotalTime(diagExporterTotalTime)
-                            .mendingTotalTime(mendingTotalTime)
-                            .mendfileWritingTotalTime(mendfileWritingTotalTime)
-
-                            // Total times in MS
-                            .diagExporterTotalTimeMs(TimeMeasure.milliseconds(diagExporterTotalTime))
-                            .mendingTotalTimeMs(TimeMeasure.milliseconds(mendingTotalTime))
-                            .mendfileWritingTotalTimeMs(TimeMeasure.milliseconds(mendfileWritingTotalTime))
-
+                            .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
                             .build();
                 }
 
-                diagExporterTotalTime += mendingIterationResult.diagExporterTime();
-                mendingTotalTime += mendingIterationResult.mendingTime();
-                mendfileWritingTotalTime += mendingIterationResult.mendfileWritingTime();
+                diagExporterTotalTime += mendingIterationResult.diagExporterTime().nanos();
 
-                success = mendingIterationResult.mendResult().success();
-                finished = success || mendingIterationResult.mendResult().finishedPrematurely(menderInvocation);
-
-                // TODO should we add the iteration results for the last iteration if it was successful?
+                success = mendingIterationResult.terminationStatus().success();
+                finished = success || mendingIterationResult.terminationStatus().finishedPrematurely(menderInvocation);
 
                 for (var unknownDiag : unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())) {
                     unknownDiagsFrequency.put(unknownDiag.id(), unknownDiagsFrequency.getOrDefault(unknownDiag.id(), 0) + 1);
                     unknownDiags.add(unknownDiag);
                 }
 
-                /*for (var unknownDiagIdx : mendingIterationResult.mendResult().unknownDiags()) {
-                    //var unknownDiagInfo = mendingIterationResult.diags().get(unknownDiagIdx);
-
-                    //unknownDiagsFrequency.put(unknownDiagInfo.id(), unknownDiagsFrequency.getOrDefault(unknownDiagInfo.id(), 0) + 1);
-
-                    //unknownDiags.add(unknownDiagInfo);
-                }*/
-
-                //unknownDiags.addAll(mendingIterationResult.mendResult().unknownDiags());
-
                 iterationResults.add(mendingIterationResult);
 
-                detectedLoop = mendingIterationResult.mendResult().detectedCycle();
-
+                detectedLoop = mendingIterationResult.terminationStatus().terminationType() == MendingTerminationStatus.TerminationType.DETECTED_CYCLE;
             }
 
             return SourceResult.builder()
                     .success(success)
-                    .fileSize(fileSizes.get(sourceFileCopy))
+                    .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
                     .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
-                    //.correctFromStart(success && currentIteration == 1)
+                    .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
                     .unknownDiags(new ArrayList<>(unknownDiags))
                     .mendingIterations(iterationResults)
-
-                    // Total times in NS
-                    .diagExporterTotalTime(diagExporterTotalTime)
-                    .mendingTotalTime(mendingTotalTime)
-                    .mendfileWritingTotalTime(mendfileWritingTotalTime)
-
-                    // Total times in MS
-                    .diagExporterTotalTimeMs(TimeMeasure.milliseconds(diagExporterTotalTime))
-                    .mendingTotalTimeMs(TimeMeasure.milliseconds(mendingTotalTime))
-                    .mendfileWritingTotalTimeMs(TimeMeasure.milliseconds(mendfileWritingTotalTime))
-
                     .build();
         });
 
@@ -259,27 +226,15 @@ public class MendingEngine {
 
         var totalTime = timedSourceResult.elapsedTime();
 
-        long otherTotalTime = totalTime - result.diagExporterTotalTime() - result.mendingTotalTime() - result.mendfileWritingTotalTime();
+        long diagExporterTotalTime = result.diagExporterTotalTime().nanos();
 
         return result.toBuilder()
                 .sourceFile(sourceFile)
-
-                .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().mendResult().fileProgress())
-
-                // Total times in NS
-                .totalTime(totalTime)
-                .otherTotalTime(otherTotalTime)
-
-                // Total times in MS
-                .totalTimeMs(TimeMeasure.milliseconds(totalTime))
-                .otherTotalTimeMs(TimeMeasure.milliseconds(otherTotalTime))
-
-                // Percentage of total times
-                .diagExporterTotalTimePercentage(TimeMeasure.percentage(totalTime, result.diagExporterTotalTime()))
-                .mendingTotalTimePercentage(TimeMeasure.percentage(totalTime, result.mendingTotalTime()))
-                .mendfileWritingTotalTimePercentage(TimeMeasure.percentage(totalTime, result.mendfileWritingTotalTime()))
-                .otherTotalTimePercentage(TimeMeasure.percentage(totalTime, otherTotalTime))
-
+                .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().terminationStatus().fileProgress())
+                .mendfileSize(result.mendingIterations().getLast().mendfileSize())
+                .totalTime(TimeBundle.fromNanos(totalTime))
+                .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime, totalTime))
+                .otherTotalTime(TimeBundle.fromNanos(totalTime - diagExporterTotalTime, totalTime))
                 .build();
     }
 
@@ -300,68 +255,80 @@ public class MendingEngine {
     private MendingIterationResult mendingIteration(MendingDirData mendingDirData, long currentIteration,
                                                     MendingTable mendingTable) {
         var timedResult = TimeMeasure.measureElapsed(() -> {
-            long mendfileWritingTime = 0;
+            // long mendfileWritingTime = 0;
 
             TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData, currentIteration);
             DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
 
             fileSizes.put(mendingDirData.sourceFileCopyPath(), diagExporterResult.sourceResults().getFirst().size());
 
-            // Because we only process just one file at a time
-            var firstSourceResult = diagExporterResult.sourceResults().getFirst();
+            var diagExporterSourceResult = diagExporterResult.sourceResults().getFirst();
 
-            TimedResult<DiagnosticMendResult> mendingTimedResult = processDiagExporterSourceResult(firstSourceResult, mendingTable, mendingDirData, currentIteration);
-            DiagnosticMendResult diagnosticMendingResult = mendingTimedResult.result();
+            try {
+                // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
+                // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
+                // have been present on the original code
 
-            // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
-            // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
-            // iteration
-            if (diagnosticMendingResult.appliedMend() || !menderInvocation.isCreateMendfileOnlyOnAlterations()) {
-                mendfileWritingTime = writeMendfile(mendingTable, mendingDirData, currentIteration);
+                // TODO for now we don't have a need to to process notes, but they might be useful in the future
+
+                var termination = diagnosticAnalysis.checkTermination(diagExporterSourceResult, mendingTable);
+                List<Integer> selectedDiagIdxs = new ArrayList<>();
+                DiagnosticMendResult mendResult = null;
+                SizeBundle mendfileSize = SizeBundle.fromBytes(
+                        Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1);
+
+                if (!termination.success() && !termination.finishedPrematurely(menderInvocation)) {
+                    selectedDiagIdxs = diagnosticAnalysis.selectDiagnostics(diagExporterSourceResult, mendingTable);
+                    var selectedDiags = new ArrayList<Diagnostic>();
+
+                    for (var idx : selectedDiagIdxs) {
+                        selectedDiags.add(diagExporterSourceResult.diags().get(idx));
+                    }
+
+                    mendResult = mendingHandler.mend(selectedDiags, mendingTable, mendingDirData);
+
+                    // avoid writing the mendfile if no mends were applied (avoid unnecessary file writes)
+                    // e.g., if we have an unknown diagnostic we don't want to write a mendfile because we skip the mending
+                    // iteration
+                    // todo enforce this. when errors are due to missing headers, this always repeat the same mendfile
+                    if (/*appliedMend || */!menderInvocation.isCreateMendfileOnlyOnAlterations()) {
+                        /*mendfileWritingTime = */
+                        writeMendfile(mendingTable, mendingDirData, currentIteration);
+                    }
+
+                    mendfileSize = SizeBundle.fromBytes(
+                            Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1);
+                }
+
+
+                System.out.println();
+
+                return MendingIterationResult.builder()
+                        .terminationStatus(termination)
+                        .selectedDiagnostics(selectedDiagIdxs)
+                        .errorCount(diagExporterSourceResult.errorCount())
+                        .fatalCount(diagExporterSourceResult.fatalCount())
+                        .mendResult(mendResult)
+                        .mendfileSize(mendfileSize)
+                        .diagExporterTime(TimeBundle.fromNanos(diagExporterTimedResult.elapsedTime()))
+                        .build();
+            } catch (Exception e) {
+                Logging.FILE_LOGGER.error(e.getMessage(), e);
+                CliReporting.error(e.getMessage());
+                CliReporting.error("could not process diagnostics from file: '%s'", mendingDirData.diagsFilePath());
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDING, "could not process diagnostics", currentIteration, e);
             }
-
-            var errorOrFatalDiags = firstSourceResult.diags().stream()
-                    .filter(Diagnostic::isErrorOrFatal)
-                    .toList();
-
-            return MendingIterationResult.builder()
-                    .errorCount(firstSourceResult.errorCount())
-                    .fatalCount(firstSourceResult.fatalCount())
-                    .mendResult(diagnosticMendingResult)
-
-                    // Iteration times in NS
-                    .diagExporterTime(diagExporterTimedResult.elapsedTime())
-                    .mendingTime(mendingTimedResult.elapsedTime())
-                    .mendfileWritingTime(mendfileWritingTime)
-
-                    // Iteration times in MS
-                    .diagExporterTimeMs(TimeMeasure.milliseconds(diagExporterTimedResult.elapsedTime()))
-                    .mendingTimeMs(TimeMeasure.milliseconds(mendingTimedResult.elapsedTime()))
-                    .mendfileWritingTimeMs(TimeMeasure.milliseconds(mendfileWritingTime))
-
-                    .build();
         });
 
         var result = timedResult.result();
 
-        var time = timedResult.elapsedTime();
-        var otherTime = time - result.diagExporterTime() -
-                            result.mendingTime() - result.mendfileWritingTime();
+        var totalTime = timedResult.elapsedTime();
+        var diagExporterTime = result.diagExporterTime().nanos();
 
         return result.toBuilder()
-                // Iteration times in NS
-                .time(time)
-                .otherTime(otherTime)
-
-                // Iteration times in MS
-                .timeMs(TimeMeasure.milliseconds(time))
-                .otherTimeMs(TimeMeasure.milliseconds(otherTime))
-
-                // Percentage of iteration times
-                .diagExporterTimePercentage(TimeMeasure.percentage(time, result.diagExporterTime()))
-                .mendingTimePercentage(TimeMeasure.percentage(time, result.mendingTime()))
-                .mendfileWritingTimePercentage(TimeMeasure.percentage(time, result.mendfileWritingTime()))
-                .otherTimePercentage(TimeMeasure.percentage(time, otherTime))
+                .totalTime(TimeBundle.fromNanos(totalTime))
+                .diagExporterTime(TimeBundle.fromNanos(diagExporterTime, totalTime))
+                .otherTime(TimeBundle.fromNanos(totalTime - diagExporterTime, totalTime))
                 .build();
     }
 
@@ -395,124 +362,6 @@ public class MendingEngine {
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not copy diags output file for iteration %d", iteration);
                 throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.DIAG_EXPORTER, "could not copy diags output file", iteration, e);
-            }
-        });
-    }
-
-    private TimedResult<DiagnosticMendResult> processDiagExporterSourceResult(
-            DiagExporterSourceResult diagExporterSourceResult,
-            MendingTable mendingTable, MendingDirData mendingDirData,
-            long iteration) {
-        return TimeMeasure.measureElapsed(() -> {
-            try {
-                // TODO we can also have a flag to finish only if there are no diagnostics (e.g., include warnings)
-                // TODO maybe process warnings (?) this might change even more the original code (for the worse) because it might
-                // have been present on the original code
-
-                // TODO for now we don't have a need to to process notes, but they might be useful in the future
-
-                /*if (!diagExporterSingleSourceResult.hasErrorsOrFatals()) {
-                    return DiagnosticMendResult.builder()
-                            .success(true)
-                            .unknownDiags(List.of())
-                            .selectedDiags(List.of())
-                            .build();
-                }
-
-                var firstError = diagExporterSingleSourceResult.getFirstErrorOrFatal();
-                var selectedDiags = List.of(DiagnosticShortInfo.from(firstError));
-
-                */
-
-                var firstErrorIdx = diagExporterSourceResult.getFirstOrFatalIdx();
-
-                if (firstErrorIdx == null) {
-                    return DiagnosticMendResult.builder()
-                            .success(true)
-                            .unknownDiags(List.of())
-                            .selectedDiags(List.of())
-                            .fileProgress(1.0)
-                            .build();
-                }
-
-                var firstError = diagExporterSourceResult.diags().get(firstErrorIdx);
-
-                var selectedDiags = List.of(firstErrorIdx);
-
-                if (mendingTable.handledDiagnostics().contains(firstError)) {
-                    return DiagnosticMendResult.builder()
-                            .success(false)
-                            .detectedCycle(true)
-                            .unknownDiags(List.of())
-                            .selectedDiags(List.of())
-                            .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSourceResult.size())
-                            .build();
-                }
-
-                mendingTable.handledDiagnostics().add(firstError);
-
-                System.out.println(">>> " + firstError);
-
-                var diagnosticID = DiagnosticID.fromIntID(firstError.id());
-
-                switch (diagnosticID) {
-                    case DiagnosticID.UNKNOWN -> {
-                        MendingHandlers.handleUnknown(firstError, mendingTable);
-                        unknownDiagsInfo.put(diagExporterSourceResult.file(), List.of(DiagnosticShortInfo.from(firstError)));
-                        return DiagnosticMendResult.builder()
-                                .success(false)
-                                .selectedDiags(selectedDiags)
-                                .unknownDiags(List.of(firstErrorIdx))
-                                .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSourceResult.size())
-                                .build();
-                    }
-                    case DiagnosticID.EXT_IMPLICIT_FUNCTION_DECL_C99 ->
-                            MendingHandlers.handleExtImplicitFunctionDeclC99(firstError, mendingTable);
-                    case DiagnosticID.ERR_UNDECLARED_VAR_USE ->
-                            MendingHandlers.handleErrUndeclaredVarUse(firstError, mendingTable);
-                    case DiagnosticID.ERR_UNDECLARED_VAR_USE_SUGGEST ->
-                            MendingHandlers.handleErrUndeclaredVarUseSuggest(firstError, mendingTable);
-                    case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->
-                            MendingHandlers.handleErrTypecheckConvertIncompatible(firstError, mendingTable);
-                    case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->
-                            MendingHandlers.handleErrTypecheckInvalidOperands(firstError, mendingTable);
-                    case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->
-                            MendingHandlers.handleErrPPFileNotFound(firstError, mendingTable, mendingDirData);
-                    case DiagnosticID.ERR_TYPECHECK_DECL_INCOMPLETE_TYPE ->
-                            MendingHandlers.handleErrTypecheckDeclIncompleteType(firstError, mendingTable);
-                    case DiagnosticID.ERR_NO_MEMBER ->
-                            MendingHandlers.handleErrNoMember(firstError, mendingTable);
-                    case DiagnosticID.ERR_UNKNOWN_TYPENAME ->
-                            MendingHandlers.handleErrUnknownTypename(firstError, mendingTable);
-                    case DiagnosticID.ERR_UNKNOWN_TYPENAME_SUGGEST ->
-                            MendingHandlers.handleErrUnknownTypenameSuggest(firstError, mendingTable);
-                    case DiagnosticID.ERR_TYPECHECK_MEMBER_REFERENCE_SUGGESTION ->
-                            MendingHandlers.handleErrTypecheckMemberReferenceSuggestion(firstError, mendingTable);
-                    case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_VALUE ->
-                            MendingHandlers.handleErrTypecheckSubscriptValue(firstError, mendingTable);
-                    case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_NOT_INTEGER ->
-                            MendingHandlers.handleErrTypecheckSubscriptNotInteger(firstError, mendingTable);
-                }
-                System.out.println();
-
-
-                // TODO improve? this success=false is misleading because it can be successful in the sense that it
-                //  processed the last diagnostic but we only know that next iteration after writing the mending file
-                //  and running the diag exporter again.
-                //  perhaps we just need to rename the field
-
-                return DiagnosticMendResult.builder()
-                        .success(false)
-                        .appliedMend(true)
-                        .selectedDiags(selectedDiags)
-                        .unknownDiags(List.of())
-                        .fileProgress((double) firstError.location().fileOffset() / (double) diagExporterSourceResult.size())
-                        .build();
-            } catch (Exception e) {
-                Logging.FILE_LOGGER.error(e.getMessage(), e);
-                CliReporting.error(e.getMessage());
-                CliReporting.error("could not process diagnostics from file: '%s'", mendingDirData.diagsFilePath());
-                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDING, "could not process diagnostics", iteration, e);
             }
         });
     }

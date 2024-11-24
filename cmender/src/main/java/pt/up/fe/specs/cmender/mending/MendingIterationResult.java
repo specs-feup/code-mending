@@ -1,32 +1,21 @@
 package pt.up.fe.specs.cmender.mending;
 
 import lombok.Builder;
+import pt.up.fe.specs.cmender.utils.SizeBundle;
+import pt.up.fe.specs.cmender.utils.TimeBundle;
 
 import java.util.List;
 
 @Builder(toBuilder = true)
 public record MendingIterationResult(
-        int errorCount,
-        int fatalCount,
+        MendingTerminationStatus terminationStatus,
+        List<Integer> selectedDiagnostics,
+        long errorCount,
+        long fatalCount,
         DiagnosticMendResult mendResult,
 
-        // Iteration times in NS
-        long time,
-        long diagExporterTime,
-        long mendingTime,
-        long mendfileWritingTime,
-        long otherTime,
-
-        // Iteration times in MS
-        double timeMs,
-        double diagExporterTimeMs,
-        double mendingTimeMs,
-        double mendfileWritingTimeMs,
-        double otherTimeMs,
-
-        // Percentage of iteration times
-        double diagExporterTimePercentage,
-        double mendingTimePercentage,
-        double mendfileWritingTimePercentage,
-        double otherTimePercentage
+        SizeBundle mendfileSize,
+        TimeBundle totalTime,
+        TimeBundle diagExporterTime,
+        TimeBundle otherTime
 ) { }

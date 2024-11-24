@@ -1,6 +1,8 @@
 package pt.up.fe.specs.cmender.mending;
 
 import lombok.Builder;
+import pt.up.fe.specs.cmender.utils.SizeBundle;
+import pt.up.fe.specs.cmender.utils.TimeBundle;
 
 import java.util.List;
 
@@ -8,11 +10,9 @@ import java.util.List;
 public record SourceResult(
         String sourceFile,
 
-        long fileSize,
+        SizeBundle fileSize,
 
         boolean success,
-
-        //boolean correctFromStart,
 
         MendingEngineFatalException fatalException,
 
@@ -20,35 +20,12 @@ public record SourceResult(
 
         double completionStatusEstimate,
 
+        SizeBundle mendfileSize,
+        TimeBundle totalTime,
+        TimeBundle diagExporterTotalTime,
+        TimeBundle otherTotalTime,
+
         List<DiagnosticShortInfo> unknownDiags,
 
-        List<MendingIterationResult> mendingIterations,
-
-        // Total times in NS
-        long totalTime,
-        long diagExporterTotalTime,
-        long mendingTotalTime,
-        long mendfileWritingTotalTime,
-        long otherTotalTime,
-
-        // Total times in MS
-        double totalTimeMs,
-        double diagExporterTotalTimeMs,
-        double mendingTotalTimeMs,
-        double mendfileWritingTotalTimeMs,
-        double otherTotalTimeMs,
-
-        // Percentage of total times
-        double diagExporterTotalTimePercentage,
-        double mendingTotalTimePercentage,
-        double mendfileWritingTotalTimePercentage,
-        double otherTotalTimePercentage
-) {
-    /*public boolean isTrueSuccess() {
-        return success && !correctFromStart;
-    }
-
-    public boolean isTrueUnsuccessful() {
-        return !success && !correctFromStart;
-    }*/
-}
+        List<MendingIterationResult> mendingIterations
+) { }

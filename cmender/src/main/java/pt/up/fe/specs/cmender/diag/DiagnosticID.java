@@ -80,4 +80,8 @@ public enum DiagnosticID {
     public String getLabelID() {
         return this.name().toLowerCase();
     }
+
+    public boolean isUnknown() {
+        return this == UNKNOWN;
+    }
 }
