@@ -813,7 +813,25 @@ public interface MendingHandler {
      default void convertSubscriptToIntegerHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("[Subscript not integer]");
 
-        var a = diag;
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of())) {
+            CliReporting.error("Could not match diagnostic args for subscript not integer");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for subscript not integer");
+            return;
+        }
+
+        var identifier = diag.sourceRanges().getFirst().encompassingCode();
+
+        // TODO this works for when the array is in local scope (or similar). maybe we might need to put this const or even use a macro for compile time size
+         // Macro might be the best option because
+        mendingTable.variables().get(identifier).setType(
+                new QualType(
+                        "unsigned int",
+                        "unsigned int",
+                        "unsigned int diag_exporter_id",
+                        Qualifiers.unqualified(),
+                        new BuiltinType(BuiltinType.BuiltinKind.UINT, "unsigned int"),
+                        null));
+
     }
 
      default void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
