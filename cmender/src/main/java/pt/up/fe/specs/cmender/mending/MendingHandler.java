@@ -736,7 +736,7 @@ public interface MendingHandler {
             }
         } else {
             System.out.println("Did not find array subscript mapping for base: " + baseEncompassingCode);
-            var identifierPattern = Pattern.compile("([a-zA-Z_][a-zA-Z0-9_]*)");
+            var identifierPattern = Pattern.compile("^([a-zA-Z_][a-zA-Z0-9_]*)$"); // TODO we will probably need to parse the baseEncompassingCode to get the identifier
 
             var matcher = identifierPattern.matcher(baseEncompassingCode);
 
