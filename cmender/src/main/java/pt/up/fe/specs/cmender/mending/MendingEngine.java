@@ -187,7 +187,7 @@ public class MendingEngine {
                             .success(false)
                             .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
                             .fatalException(e)
-                            .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
+                            .iterationCount(currentIteration)
                             .unknownDiags(new ArrayList<>(unknownDiags))
                             .mendingIterations(iterationResults)
                             .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
@@ -212,7 +212,7 @@ public class MendingEngine {
             return SourceResult.builder()
                     .success(success)
                     .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
-                    .iterationCount(currentIteration - 1) // TODO think if we should count the iteration where the success occurred
+                    .iterationCount(currentIteration)
                     .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
                     .unknownDiags(new ArrayList<>(unknownDiags))
                     .mendingIterations(iterationResults)
@@ -313,6 +313,7 @@ public class MendingEngine {
                         .diagExporterTime(TimeBundle.fromNanos(diagExporterTimedResult.elapsedTime()))
                         .build();
             } catch (Exception e) {
+                e.printStackTrace();
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not process diagnostics from file: '%s'", mendingDirData.diagsFilePath());
