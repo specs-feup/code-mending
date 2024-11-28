@@ -188,7 +188,7 @@ public class MendingEngine {
                             .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
                             .fatalException(e)
                             .iterationCount(currentIteration)
-                            .unknownDiags(new ArrayList<>(unknownDiags))
+                            .unknownDiags(new ArrayList<>(unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())))
                             .mendingIterations(iterationResults)
                             .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
                             .build();
@@ -214,7 +214,7 @@ public class MendingEngine {
                     .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
                     .iterationCount(currentIteration)
                     .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
-                    .unknownDiags(new ArrayList<>(unknownDiags))
+                    .unknownDiags(new ArrayList<>(unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())))
                     .mendingIterations(iterationResults)
                     .build();
         });
@@ -277,6 +277,11 @@ public class MendingEngine {
                 SizeBundle mendfileSize = SizeBundle.fromBytes(
                         Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1);
 
+                this.unknownDiagsInfo.put(mendingDirData.sourceFileCopyPath(),
+                        termination.unknownDiags().stream().map(unknownDiagIdx ->
+                            DiagnosticShortInfo.from(diagExporterResult.sourceResults().getFirst().diags().get(unknownDiagIdx))
+                        ).toList());
+
                 if (!termination.success() && !termination.finishedPrematurely(menderInvocation)) {
                     selectedDiagIdxs = diagnosticAnalysis.selectDiagnostics(diagExporterSourceResult, mendingTable);
                     var selectedDiags = new ArrayList<Diagnostic>();
@@ -299,7 +304,6 @@ public class MendingEngine {
                     mendfileSize = SizeBundle.fromBytes(
                             Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1);
                 }
-
 
                 System.out.println();
 

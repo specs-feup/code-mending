@@ -16,7 +16,13 @@ public class FirstErrorAnalysis implements DiagnosticAnalysis {
                     .build();
         }
 
-        var firstError = sourceResult.getFirstErrorOrFatal();
+        //var firstError = sourceResult.getFirstErrorOrFatal();
+        var firstErrorIdx = sourceResult.getFirstOrFatalIdx();
+
+        assert firstErrorIdx != null && firstErrorIdx >= 0;
+
+        var firstError = sourceResult.diags().get(firstErrorIdx);
+
         var fileProgress = (double) firstError.location().fileOffset() / (double) sourceResult.size();
 
         if (mendingTable.handledDiagnostics().contains(firstError)) {
@@ -30,7 +36,7 @@ public class FirstErrorAnalysis implements DiagnosticAnalysis {
             return MendingTerminationStatus.builder()
                     .terminationType(MendingTerminationStatus.TerminationType.UNKNOWN_DIAGNOSTIC)
                     .fileProgress(fileProgress)
-                    .unknownDiags(List.of(firstError.id()))
+                    .unknownDiags(List.of(firstErrorIdx))
                     .build();
         }
 
