@@ -13,6 +13,7 @@ public class FirstErrorAnalysis implements DiagnosticAnalysis {
             return MendingTerminationStatus.builder()
                     .terminationType(MendingTerminationStatus.TerminationType.NO_MORE_ERRORS_OR_FATALS)
                     .fileProgress(1.0)
+                    .unknownDiags(List.of())
                     .build();
         }
 
@@ -29,6 +30,7 @@ public class FirstErrorAnalysis implements DiagnosticAnalysis {
             return MendingTerminationStatus.builder()
                     .terminationType(MendingTerminationStatus.TerminationType.DETECTED_CYCLE)
                     .fileProgress(fileProgress)
+                    .unknownDiags(List.of())
                     .build();
         }
 
@@ -43,6 +45,7 @@ public class FirstErrorAnalysis implements DiagnosticAnalysis {
         return MendingTerminationStatus.builder()
                 .terminationType(MendingTerminationStatus.TerminationType.NO_TERMINATION)
                 .fileProgress(fileProgress)
+                .unknownDiags(List.of())
                 .build();
     }
 
