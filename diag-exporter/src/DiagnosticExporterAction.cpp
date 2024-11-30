@@ -5,13 +5,19 @@
 
 #include "DiagnosticExporterAction.h"
 
-std::string DiagnosticExporterAction::outputFilepath = "output.json";
+#include <iostream>
+
+std::atomic<unsigned> DiagnosticExporterActionFactory::fileIdCounter{0};
+
+// std::string DiagnosticExporterAction::outputFilepath = "output.json";
 
 unsigned DiagnosticExporterAction::totalFiles = 0;
 
-unsigned DiagnosticExporterAction::filesDone = 0;
+// unsigned DiagnosticExporterAction::filesDone = 0;
 
-ordered_json DiagnosticExporterAction::diagsInfos = ordered_json::array();
+// ordered_json DiagnosticExporterAction::diagsInfos = ordered_json::array();
+
+std::vector<ordered_json> DiagnosticExporterAction::individualDiagsInfos;
 
 static std::vector<std::string> split(const std::string &path, char delimiter) {
     std::vector<std::string> tokens;
@@ -48,12 +54,25 @@ void DiagnosticExporterAction::ExecuteAction() {
 
     const auto currentFile = reducePath(std::string(getCurrentFile().data(), getCurrentFile().size()));
 
-    llvm::outs() << "Executing diagnostic exporter action for file " << currentFile << "\n";
+    // todo this is not thread safe
+    // llvm::outs() << "Executing diagnostic exporter action for file " << currentFile << "\n";
+    std::cout << "Executing diagnostic exporter action for file " << currentFile << "\n";
 
     SyntaxOnlyAction::ExecuteAction();
 }
 
 void DiagnosticExporterAction::EndSourceFileAction() {
+    const auto currentFile = reducePath(std::string(getCurrentFile().data(), getCurrentFile().size()));
+    // todo this is not thread safe
+    // llvm::outs() << "Diagnostic exporter action finished for file " << currentFile << "\n";
+    std::cout << "Diagnostic exporter action finished for file " << currentFile << "\n";
+
+    assert(diagConsumer != nullptr && "Diagnostic Consumer must not be a nullptr");
+
+    individualDiagsInfos[fileId] = diagConsumer->getDiagsInfo();
+}
+
+/*void DiagnosticExporterAction::EndSourceFileAction() {
     const auto currentFile = reducePath(std::string(getCurrentFile().data(), getCurrentFile().size()));
     llvm::outs() << "Diagnostic exporter action finished for file " << currentFile << "\n";
 
@@ -96,9 +115,33 @@ void DiagnosticExporterAction::EndSourceFileAction() {
             file.close();
         }
     }
+}*/
+
+void DiagnosticExporterAction::setTotalFiles(const unsigned totalFiles) {
+    DiagnosticExporterAction::totalFiles = totalFiles;
+    individualDiagsInfos.resize(totalFiles);
+
+    for (unsigned i = 0; i < totalFiles; i++) {
+        individualDiagsInfos[i] = ordered_json::object({
+            {"file", ordered_json(nullptr)},
+            {"size", -1},
+            {"totalDiagsCount", 0},
+            {"ignoredCount", 0},
+            {"noteCount", 0},
+            {"remarkCount", 0},
+            {"warningCount", 0},
+            {"errorCount", 0},
+            {"fatalCount", 0},
+            {"diags", ordered_json::array()},
+        });
+    }
 }
 
-void DiagnosticExporterAction::setConfig(std::string outputFilepath, const unsigned totalFiles) {
+/*void DiagnosticExporterAction::setOutputFilepath(std::string outputFilepath) {
+    DiagnosticExporterAction::outputFilepath = std::move(outputFilepath);
+}*/
+
+/*void DiagnosticExporterAction::setConfig(std::string outputFilepath, const unsigned totalFiles) {
     DiagnosticExporterAction::outputFilepath = std::move(outputFilepath);
     DiagnosticExporterAction::totalFiles = totalFiles;
-}
+}*/
