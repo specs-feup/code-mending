@@ -77,6 +77,7 @@ public:
         diagsInfo = ordered_json::object({
             {"file", fileEntry? ordered_json(fileEntry->getName()) : ordered_json(nullptr)},
             {"size", endLoc.isInvalid()? -1 : sourceManager.getDecomposedLoc(endLoc).second},
+            {"actionTimeNs", 0},
             {"totalDiagsCount", 0},
             {"ignoredCount", 0},
             {"noteCount", 0},
@@ -95,6 +96,8 @@ public:
     void EndSourceFile() override;
 
     const ordered_json &getDiagsInfo() const { return diagsInfo; }
+
+    void setActionTimeNanos(unsigned actionTimeNs);
 };
 
 #endif // DIAGNOSTICEXPORTER_JSONDIAGNOSTICCONSUMER_H

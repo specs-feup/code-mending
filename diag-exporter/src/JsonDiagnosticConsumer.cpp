@@ -82,6 +82,10 @@ void JsonDiagnosticConsumer::EndSourceFile() {
     diagsInfo["fatalCount"] = fatalCount;
 }
 
+void JsonDiagnosticConsumer::setActionTimeNanos(unsigned actionTimeNs) {
+    diagsInfo["actionTimeNs"] = actionTimeNs;
+}
+
 void JsonDiagnosticConsumer::updateDiagnosticCounts(clang::DiagnosticsEngine::Level level) {
     totalDiagsCount++;
 

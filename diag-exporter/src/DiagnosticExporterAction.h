@@ -1,14 +1,15 @@
 #ifndef DIAGNOSTICEXPORTER_DIAGNOSTICEXPORTERACTION_H
 #define DIAGNOSTICEXPORTER_DIAGNOSTICEXPORTERACTION_H
 
-#include <iostream>
+#include <clang/Tooling/Tooling.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <nlohmann/json.hpp>
+
 #include <mutex>
-#include <clang/Tooling/Tooling.h>
+#include <chrono>
+#include <iostream>
 
 #include "JsonDiagnosticConsumer.h"
-#include "SourceBatchThreadAllocator.h"
 
 using ordered_json = nlohmann::ordered_json;
 
@@ -28,9 +29,18 @@ private:
     // std::mutex mutex; // TODO this is probably incorrect, the mutex needed to be shared among all DiagnosticExporterAction instances
 
     const unsigned fileId;
+
+    std::string currentReducedFile;
+
+    std::chrono::time_point<std::chrono::steady_clock> start;
+
 public:
     explicit DiagnosticExporterAction(const unsigned fileId) :
             diagConsumer(nullptr), fileId(fileId) { }
+
+    bool BeginInvocation(clang::CompilerInstance &compilerInstance) override;
+
+    bool BeginSourceFileAction(clang::CompilerInstance &compilerInstance) override;
 
     void ExecuteAction() override;
 

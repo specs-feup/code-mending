@@ -43,33 +43,51 @@ static std::string reducePath(const std::string &path) {
     return reducedPath;
 }
 
+bool DiagnosticExporterAction::BeginInvocation(clang::CompilerInstance &compilerInstance) {
+    return SyntaxOnlyAction::BeginInvocation(compilerInstance);
+}
+
+bool DiagnosticExporterAction::BeginSourceFileAction(clang::CompilerInstance &compilerInstance) {
+    //diagConsumer = new JsonDiagnosticConsumer(compilerInstance);
+    //compilerInstance.getDiagnostics().setClient(diagConsumer, /*ShouldOwnClient=*/false);
+    currentReducedFile = reducePath(std::string(getCurrentFile().data(), getCurrentFile().size()));
+    return true;
+}
+
 void DiagnosticExporterAction::ExecuteAction() {
     clang::CompilerInstance &compilerInstance = getCompilerInstance();
 
-    clang::DiagnosticsEngine &diagsEngine = compilerInstance.getDiagnostics();
-
+    // Needs to be created here because ASTContext is not available in BeginSourceFileAction
     diagConsumer = new JsonDiagnosticConsumer(compilerInstance);
 
-    diagsEngine.setClient(diagConsumer, /*ShouldOwnClient=*/false);
+    compilerInstance.getDiagnostics().setClient(diagConsumer, /*ShouldOwnClient=*/false);
 
-    const auto currentFile = reducePath(std::string(getCurrentFile().data(), getCurrentFile().size()));
-
-    // todo this is not thread safe
+    // TODO this is not thread safe
     // llvm::outs() << "Executing diagnostic exporter action for file " << currentFile << "\n";
-    std::cout << "Executing diagnostic exporter action for file " << currentFile << "\n";
+    std::cout << "Executing diagnostic exporter action for file " << currentReducedFile << "\n";
+
+    start = std::chrono::high_resolution_clock::now();
 
     SyntaxOnlyAction::ExecuteAction();
 }
 
 void DiagnosticExporterAction::EndSourceFileAction() {
-    const auto currentFile = reducePath(std::string(getCurrentFile().data(), getCurrentFile().size()));
+    const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                std::chrono::high_resolution_clock::now() - start);
+
+    //std::cout << "Elapsed time: " << duration.count() / 1000.0  << " milliseconds for file of size " << (double) diagConsumer->getDiagsInfo()["size"] / 1024.0 << " KB\n";
+
     // todo this is not thread safe
     // llvm::outs() << "Diagnostic exporter action finished for file " << currentFile << "\n";
-    std::cout << "Diagnostic exporter action finished for file " << currentFile << "\n";
+    std::cout << "Diagnostic exporter action finished for file " << currentReducedFile << "\n";
 
     assert(diagConsumer != nullptr && "Diagnostic Consumer must not be a nullptr");
 
+    diagConsumer->setActionTimeNanos(duration.count());
+
+    //diagConsumer->setActionTimeMs();
     individualDiagsInfos[fileId] = diagConsumer->getDiagsInfo();
+    // TODO delete diagConsumer;
 }
 
 /*void DiagnosticExporterAction::EndSourceFileAction() {
@@ -125,6 +143,7 @@ void DiagnosticExporterAction::setTotalFiles(const unsigned totalFiles) {
         individualDiagsInfos[i] = ordered_json::object({
             {"file", ordered_json(nullptr)},
             {"size", -1},
+            {"actionTimeNs", -1},
             {"totalDiagsCount", 0},
             {"ignoredCount", 0},
             {"noteCount", 0},
