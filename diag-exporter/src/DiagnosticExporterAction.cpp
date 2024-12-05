@@ -44,7 +44,35 @@ static std::string reducePath(const std::string &path) {
 }
 
 bool DiagnosticExporterAction::BeginInvocation(clang::CompilerInstance &compilerInstance) {
-    return SyntaxOnlyAction::BeginInvocation(compilerInstance);
+    if (severityMapping.is_null()) {
+        return true;
+    }
+
+    auto &diagnosticsEngine = compilerInstance.getDiagnostics();
+
+    for (auto it = severityMapping.begin(); it != severityMapping.end(); ++it) {
+        const auto id = std::stoi(it.key());
+        const auto severityStr = it.value().get<std::string>();
+
+        // TODO validate at the start the file
+        clang::diag::Severity severity = clang::diag::Severity::Ignored;
+
+        if (severityStr == "ignored") {
+            severity = clang::diag::Severity::Ignored;
+        } else if (severityStr == "remark") {
+            severity = clang::diag::Severity::Remark;
+        } else if (severityStr == "warning") {
+            severity = clang::diag::Severity::Warning;
+        } else if (severityStr == "error") {
+            severity = clang::diag::Severity::Error;
+        } else if (severityStr == "fatal") {
+            severity = clang::diag::Severity::Fatal;
+        }
+
+        diagnosticsEngine.setSeverity(id, severity, clang::SourceLocation());
+    }
+
+    return true;
 }
 
 bool DiagnosticExporterAction::BeginSourceFileAction(clang::CompilerInstance &compilerInstance) {

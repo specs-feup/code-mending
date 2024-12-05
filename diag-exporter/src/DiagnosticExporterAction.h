@@ -30,13 +30,15 @@ private:
 
     const unsigned fileId;
 
+    const ordered_json &severityMapping;
+
     std::string currentReducedFile;
 
     std::chrono::time_point<std::chrono::steady_clock> start;
 
 public:
-    explicit DiagnosticExporterAction(const unsigned fileId) :
-            diagConsumer(nullptr), fileId(fileId) { }
+    explicit DiagnosticExporterAction(const unsigned fileId, const ordered_json &severityMapping) :
+            diagConsumer(nullptr), fileId(fileId), severityMapping(severityMapping) { }
 
     bool BeginInvocation(clang::CompilerInstance &compilerInstance) override;
 
@@ -58,11 +60,14 @@ public:
 class DiagnosticExporterActionFactory : public clang::tooling::FrontendActionFactory {
 private:
     static std::atomic<unsigned> fileIdCounter;
+
+    const ordered_json &severityMapping;
 public:
-    explicit DiagnosticExporterActionFactory() = default; // created once per thread
+    explicit DiagnosticExporterActionFactory(const ordered_json &severityMapping) :
+                                                severityMapping(severityMapping) {} // created once per thread
 
     std::unique_ptr<clang::FrontendAction> create() override { // called for each file
-        return std::make_unique<DiagnosticExporterAction>(fileIdCounter.fetch_add(1));
+        return std::make_unique<DiagnosticExporterAction>(fileIdCounter.fetch_add(1), severityMapping);
     }
 };
 

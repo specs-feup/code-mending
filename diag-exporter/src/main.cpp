@@ -35,6 +35,13 @@ static llvm::cl::opt<unsigned> threads(
                 llvm::cl::init(1),
                 llvm::cl::cat(tuDiagExporterCategory));
 
+static llvm::cl::opt<std::string> severityMappingFilepath(
+                "m",
+                llvm::cl::desc("Specify severity mapping file"),
+                llvm::cl::Optional,
+                llvm::cl::value_desc("mapping"),
+                llvm::cl::cat(tuDiagExporterCategory));
+
 unsigned validateThreadNum(const std::vector<SourceFile> &sourceFiles) {
     const auto hardwareThreads = std::thread::hardware_concurrency();
 
@@ -57,7 +64,7 @@ unsigned validateThreadNum(const std::vector<SourceFile> &sourceFiles) {
 
 // TODO find if calling the tool just one time is more efficient than calling it multiple times with 1 file each
 void runExporterInThread(llvm::Expected<clang::tooling::CommonOptionsParser> &optionsParser,
-                         const unsigned id, const ThreadSourceBatch &threadSourceBatch) {
+                         const unsigned id, const ThreadSourceBatch &threadSourceBatch, const ordered_json &severityMapping) {
 
     std::vector<std::string> sourceFiles;
 
@@ -68,9 +75,35 @@ void runExporterInThread(llvm::Expected<clang::tooling::CommonOptionsParser> &op
     }
 
     clang::tooling::ClangTool tool(optionsParser->getCompilations(), sourceFiles);
-    DiagnosticExporterActionFactory actionFactory;
+    DiagnosticExporterActionFactory actionFactory(severityMapping);
 
     tool.run(&actionFactory);
+}
+
+ordered_json getSeverityMapping() {
+    ordered_json severityMapping = nullptr;
+
+    if (severityMappingFilepath.empty()) {
+        return severityMapping;
+    }
+
+    std::ifstream inputFile(severityMappingFilepath);
+
+    if (!inputFile.is_open()) {
+        std::cerr << "Could not open the severity mapping file for reading!" << std::endl;
+        std::exit(1);
+    }
+
+    try {
+        inputFile >> severityMapping;
+
+        inputFile.close();
+
+        return severityMapping;
+    } catch (const ordered_json::parse_error& e) {
+        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+        std::exit(1);
+    }
 }
 
 int main(int argc, const char **argv) {
@@ -85,6 +118,8 @@ int main(int argc, const char **argv) {
         llvm::errs() << optionsParser.takeError();
         return 1;
     }
+
+    auto mapping = getSeverityMapping();
 
     std::vector<SourceFile> sourceFiles{};
 
@@ -112,7 +147,7 @@ int main(int argc, const char **argv) {
         llvm::outs() << "diag-exporter: note: number of threads is 1. Using single-threaded mode\n";
         clang::tooling::ClangTool tool(optionsParser->getCompilations(), optionsParser->getSourcePathList());
 
-        DiagnosticExporterActionFactory actionFactory;
+        DiagnosticExporterActionFactory actionFactory(mapping);
         int ret = tool.run(&actionFactory);
     } else {
         auto sourceBatchAllocation = SourceBatchThreadAllocator(threadNum, sourceFiles);
@@ -122,7 +157,7 @@ int main(int argc, const char **argv) {
         std::vector<std::thread> threads;
 
         for (unsigned i = 0; i < threadNum; i++) {
-            threads.emplace_back(runExporterInThread, std::ref(optionsParser), i, threadSourceBatches[i]);
+            threads.emplace_back(runExporterInThread, std::ref(optionsParser), i, threadSourceBatches[i], std::ref(mapping));
         }
 
         for (auto &thread : threads) {
