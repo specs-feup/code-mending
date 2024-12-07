@@ -25,6 +25,9 @@ public class CMenderInvocation {
     private boolean verbose = false;
 
     @Builder.Default
+    private int threads = 1;
+
+    @Builder.Default
     private String diagExporterPath = null;
 
     @Builder.Default

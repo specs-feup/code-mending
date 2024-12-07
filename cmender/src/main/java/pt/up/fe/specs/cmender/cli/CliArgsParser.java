@@ -47,6 +47,9 @@ public class CliArgsParser {
     private static final String VERBOSE_SHORT = "v";
     private static final String VERBOSE_LONG = "verbose";
 
+    private static final String THREADS_SHORT = "t";
+    private static final String THREADS_LONG = "threads";
+
     public static final Options OPTIONS = new Options()
             .addOption(Option.builder(HELP_SHORT)
                 .longOpt(HELP_LONG)
@@ -111,6 +114,14 @@ public class CliArgsParser {
             .addOption(Option.builder(VERBOSE_SHORT)
                 .longOpt(VERBOSE_LONG)
                 .desc("Use verbose output")
+                .build())
+            .addOption(Option.builder(THREADS_SHORT)
+                .longOpt(THREADS_LONG)
+                .desc("Number of threads to use")
+                .argName("number")
+                .hasArg()
+                .optionalArg(true)
+                .type(Integer.class)
                 .build());
 
     public static CMenderInvocation parseArgs(String[] args) throws CliArgsParserException {
@@ -142,6 +153,7 @@ public class CliArgsParser {
                     .version(cmd.hasOption(VERSION_LONG))
                     .help(cmd.hasOption(HELP_SHORT))
                     .verbose(cmd.hasOption(VERBOSE_SHORT))
+                    .threads(Integer.parseInt(cmd.getOptionValue(THREADS_SHORT, "1")))
                     .diagExporterPath(cmd.getOptionValue(DIAG_EXPORTER_SHORT))
                     .createMendfileCopyPerIteration(cmd.hasOption(MENDFILE_COPY_PER_ITERATION_SHORT))
                     .createDiagsOutputCopyPerIteration(cmd.hasOption(DIAGS_OUTPUT_COPY_PER_ITERATION_SHORT))

@@ -45,6 +45,10 @@ public class MendingTable {
 
     private final List<Diagnostic> handledDiagnostics;
 
+    private long fileSize;
+
+    private final List<DiagnosticShortInfo> unknownDiags;
+
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
@@ -54,6 +58,15 @@ public class MendingTable {
         typeNameToCorrespondingSymbol = new HashMap<>();
         arraySubscriptToCorrespondingSymbol = new HashMap<>();
         handledDiagnostics = new ArrayList<>();
+        unknownDiags = new ArrayList<>();
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public void addUnknownDiag(DiagnosticShortInfo diag) {
+        unknownDiags.add(diag);
     }
 
     public void put(VariableSymbol variable) {

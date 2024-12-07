@@ -8,9 +8,7 @@ import pt.up.fe.specs.cmender.diag.DiagExporter;
 import pt.up.fe.specs.cmender.diag.DiagExporterException;
 import pt.up.fe.specs.cmender.diag.DiagExporterInvocation;
 import pt.up.fe.specs.cmender.diag.DiagExporterResult;
-import pt.up.fe.specs.cmender.diag.DiagExporterSourceResult;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
-import pt.up.fe.specs.cmender.diag.DiagnosticID;
 import pt.up.fe.specs.cmender.logging.Logging;
 import pt.up.fe.specs.cmender.utils.SizeBundle;
 import pt.up.fe.specs.cmender.utils.TimeBundle;
@@ -25,10 +23,14 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class MendingEngine {
     private static final String MENDING_DISCLAIMER_IN_SOURCE = """
@@ -56,10 +58,6 @@ public class MendingEngine {
 
     private final Map<String, Integer> unknownDiagsFrequency;
 
-    private final Map<String, List<DiagnosticShortInfo>> unknownDiagsInfo;
-
-    private final Map<String, Long> fileSizes;
-
     private final DiagnosticAnalysis diagnosticAnalysis;
 
     private final MendingHandler mendingHandler;
@@ -67,10 +65,8 @@ public class MendingEngine {
     public MendingEngine(CMenderInvocation menderInvocation) {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
-        this.unknownDiagsFrequency = new HashMap<>();
-        this.unknownDiagsInfo = new HashMap<>();
-        this.fileSizes = new HashMap<>();
-        this.diagnosticAnalysis = new FirstErrorAnalysis();
+        this.unknownDiagsFrequency = new ConcurrentHashMap<>(); // TODO is this the best choice?
+        this.diagnosticAnalysis = new BasicFirstErrorAnalysis();
         this.mendingHandler = new SequentialMendingHandler();
     }
 
@@ -88,49 +84,67 @@ public class MendingEngine {
         //   It involves changing the logic the engine and exporting the mending dir
         // TODO how should multithreading be handled? (e.g., one thread per batch of files etc.)
 
-        var sourceResults = new ArrayList<SourceResult>();
-        var mendingDirDatas = new ArrayList<MendingDirData>();
+        SourceResult[] sourceResults = new SourceResult[files.size()];
 
-        for (var file : files) {
-            System.out.println(file);
+        MendingDirData[] mendingDirDatas = new MendingDirData[files.size()];
 
-            var mendingDirData = CMenderDataManager.createMendingDir(file, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME, menderInvocation.getDiagsOutputFilename());
-            System.out.println(mendingDirData);
+        // TODO validate number of threads
 
-            if (mendingDirData == null) {
-                //continue;
-                throw new RuntimeException("mendingDirData is null");
+        if (menderInvocation.getThreads() == 1) {
+            CliReporting.info("running in single-thread mode");
+
+            for (int i = 0; i < files.size(); i++) {
+                var file = files.get(i);
+                System.out.println(file);
+
+                var bundle = mend(file);
+
+                sourceResults[i] = bundle.sourceResult();
+                mendingDirDatas[i] = bundle.mendingDirData();
+            }
+        } else {
+            CliReporting.info("running in multi-thread mode with %d threads", menderInvocation.getThreads());
+
+            ExecutorService executorService = Executors.newFixedThreadPool(menderInvocation.getThreads());
+
+            for (int i = 0; i < files.size(); i++) {
+                var file = files.get(i);
+                System.out.println(file);
+                int finalI = i;
+
+                executorService.submit(() -> {
+                    var bundle = mend(file);
+                    sourceResults[finalI] = bundle.sourceResult();
+                    mendingDirDatas[finalI] = bundle.mendingDirData();
+                });
             }
 
-            mendingDirDatas.add(mendingDirData);
+            executorService.shutdown();
 
-            sourceResults.add(mend(file, mendingDirData));
+            try {
+                if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
+                    executorService.shutdownNow(); // Force shutdown if not finished in 10 minutes
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt(); // Preserve interrupt status
+            }
         }
+
 
         /*if (sourceResults.size() != files.size()) {
             CliReporting.warning("not all files were processed, exiting");
             Logging.FILE_LOGGER.warn("not all files were processed, exiting");
         }*/
 
-        /*var successCount = (int) sourceResults.stream().filter(SourceResult::success).count();
-
-        var trueSuccessCount = (int) sourceResults.stream().filter(SourceResult::isTrueSuccess).count();
-
-        var correctFromStartCount = successCount - trueSuccessCount;
-
-        var totalMendableFiles = files.size() - correctFromStartCount;
-
-        var unsuccessfulCount = (int) sourceResults.stream().filter(SourceResult::isTrueUnsuccessful).count();
-        var exceptionCount = (int) sourceResults.stream().filter(result -> result.fatalException() != null).count();*/
-
-        var successCount = (int) sourceResults.stream().filter(SourceResult::success).count();
+        var sourceResultsList = Arrays.stream(sourceResults).toList();
+        var successCount = (int) sourceResultsList.stream().filter(SourceResult::success).count();
         var unsuccessfulCount = files.size() - successCount;
-        var exceptionCount = (int) sourceResults.stream().filter(result -> result.fatalException() != null).count();
+        var exceptionCount = (int) sourceResultsList.stream().filter(result -> result.fatalException() != null).count();
 
         var cmenderReport = CMenderReport.builder()
                 .invocation(menderInvocation)
                 .totalFiles(files.size())
-                //.totalMendableFiles(totalMendableFiles)
 
                 .successCount(successCount)
                 .unsuccessfulCount(unsuccessfulCount)
@@ -142,15 +156,22 @@ public class MendingEngine {
                 .fatalExceptionOverUnsuccessfulRatio(unsuccessfulCount == 0? 0.0 : (double) exceptionCount / unsuccessfulCount)
 
                 .unknownDiagsFrequency(unknownDiagsFrequency)
-                .sourceResults(sourceResults)
+                .sourceResults(Arrays.stream(sourceResults).toList())
                 .build();
 
-        return new MendingEngineBundle(cmenderReport, mendingDirDatas);
+        return new MendingEngineBundle(cmenderReport, Arrays.stream(mendingDirDatas).toList());
     }
 
-    private SourceResult mend(String sourceFile, MendingDirData mendingDirData) {
+    private MendBundle mend(String sourceFile) {
+        var mendingDirData = CMenderDataManager.createMendingDir(sourceFile, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME, menderInvocation.getDiagsOutputFilename());
+        System.out.println(mendingDirData);
+
+        if (mendingDirData == null) {
+            //continue;
+            throw new RuntimeException("mendingDirData is null");
+        }
+
         String sourceFileCopy = mendingDirData.sourceFileCopyPath();
-        unknownDiagsInfo.put(sourceFileCopy, new ArrayList<>());
 
         var mendingTable = new MendingTable();
         var maxTotalIterations = menderInvocation.getMaxTotalIterations();
@@ -185,10 +206,10 @@ public class MendingEngine {
 
                     return SourceResult.builder()
                             .success(false)
-                            .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
+                            .fileSize(SizeBundle.fromBytes(mendingTable.fileSize()))
                             .fatalException(e)
                             .iterationCount(currentIteration)
-                            .unknownDiags(new ArrayList<>(unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())))
+                            .unknownDiags(mendingTable.unknownDiags())
                             .mendingIterations(iterationResults)
                             .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
                             .build();
@@ -199,7 +220,7 @@ public class MendingEngine {
                 success = mendingIterationResult.terminationStatus().success();
                 finished = success || mendingIterationResult.terminationStatus().finishedPrematurely(menderInvocation);
 
-                for (var unknownDiag : unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())) {
+                for (var unknownDiag : mendingTable.unknownDiags()) {
                     unknownDiagsFrequency.put(unknownDiag.id(), unknownDiagsFrequency.getOrDefault(unknownDiag.id(), 0) + 1);
                     unknownDiags.add(unknownDiag);
                 }
@@ -211,10 +232,10 @@ public class MendingEngine {
 
             return SourceResult.builder()
                     .success(success)
-                    .fileSize(SizeBundle.fromBytes(fileSizes.get(sourceFileCopy)))
+                    .fileSize(SizeBundle.fromBytes(mendingTable.fileSize()))
                     .iterationCount(currentIteration)
                     .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))
-                    .unknownDiags(new ArrayList<>(unknownDiagsInfo.get(mendingDirData.sourceFileCopyPath())))
+                    .unknownDiags(mendingTable.unknownDiags())
                     .mendingIterations(iterationResults)
                     .build();
         });
@@ -228,14 +249,14 @@ public class MendingEngine {
 
         long diagExporterTotalTime = result.diagExporterTotalTime().nanos();
 
-        return result.toBuilder()
+        return new MendBundle(result.toBuilder()
                 .sourceFile(sourceFile)
                 .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().terminationStatus().fileProgress())
                 .mendfileSize(result.mendingIterations().getLast().mendfileSize())
                 .totalTime(TimeBundle.fromNanos(totalTime))
                 .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime, totalTime))
                 .otherTotalTime(TimeBundle.fromNanos(totalTime - diagExporterTotalTime, totalTime))
-                .build();
+                .build(), mendingDirData);
     }
 
         // we don't calculate this based on the line of the last successful iteration
@@ -260,7 +281,7 @@ public class MendingEngine {
             TimedResult<DiagExporterResult> diagExporterTimedResult = callDiagExporter(mendingDirData, currentIteration);
             DiagExporterResult diagExporterResult = diagExporterTimedResult.result();
 
-            fileSizes.put(mendingDirData.sourceFileCopyPath(), diagExporterResult.sourceResults().getFirst().size());
+            mendingTable.setFileSize(diagExporterResult.sourceResults().getFirst().size());
 
             var diagExporterSourceResult = diagExporterResult.sourceResults().getFirst();
 
@@ -277,10 +298,11 @@ public class MendingEngine {
                 SizeBundle mendfileSize = SizeBundle.fromBytes(
                         Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1);
 
-                this.unknownDiagsInfo.put(mendingDirData.sourceFileCopyPath(),
-                        termination.unknownDiags().stream().map(unknownDiagIdx ->
-                            DiagnosticShortInfo.from(diagExporterResult.sourceResults().getFirst().diags().get(unknownDiagIdx))
-                        ).toList());
+                for (var unknownDiag : termination.unknownDiags()) {
+                    mendingTable.addUnknownDiag(
+                            DiagnosticShortInfo.from(diagExporterSourceResult.diags().get(unknownDiag)));
+
+                }
 
                 if (!termination.success() && !termination.finishedPrematurely(menderInvocation)) {
                     selectedDiagIdxs = diagnosticAnalysis.selectDiagnostics(diagExporterSourceResult, mendingTable);
