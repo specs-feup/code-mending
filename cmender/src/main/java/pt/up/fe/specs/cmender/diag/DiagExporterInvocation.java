@@ -3,6 +3,7 @@ package pt.up.fe.specs.cmender.diag;
 import lombok.*;
 import lombok.experimental.Accessors;
 
+import pt.up.fe.specs.cmender.data.CMenderDataManager;
 import pt.up.fe.specs.cmender.lang.Lang;
 import pt.up.fe.specs.cmender.lang.Standard;
 
@@ -27,6 +28,9 @@ public class DiagExporterInvocation {
 
     @Builder.Default
     private String outputFilepath = "./" + DEFAULT_OUTPUT_FILENAME; // the "./" is not necessary, but it is added for clarity
+
+    @Builder.Default
+    private String severityMappingFilepath = CMenderDataManager.DIAGNOSTIC_SEVERITY_MAPPING_FILEPATH;
 
     @Builder.Default
     private Lang lang = Lang.C;
@@ -58,6 +62,8 @@ public class DiagExporterInvocation {
 
         args.add("-o");
         args.add(outputFilepath);
+        args.add("-m");
+        args.add(severityMappingFilepath);
         args.add("--");
         args.add("-x");
         args.add(lang.getClangInvocationSpelling());
@@ -87,8 +93,9 @@ public class DiagExporterInvocation {
         }
 
         stringBuilder.append(
-                "-o %s -- -x %s -std=%s -ferror-limit=%d".formatted(
+                "-o %s -m %s -- -x %s -std=%s -ferror-limit=%d".formatted(
                         outputFilepath,
+                        severityMappingFilepath,
                         lang.getClangInvocationSpelling(),
                         standard.getClangInvocationSpelling(),
                         errorLimit))

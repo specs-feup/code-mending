@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +28,8 @@ public class CMenderDataManager {
     // TODO this is not used. maybe store the MendDirData objects in the values. Will be used to delete the directories after the process is finished
     private static final Map<String, String> MENDING_DIRNAMES;
 
+    public static final String DIAGNOSTIC_SEVERITY_MAPPING_FILEPATH;
+
     static {
         DATA_DIRPATH = getCMenderDataDirPath();
         BASE_MENDING_DIRPATH = Paths.get(DATA_DIRPATH, "mending").toString();
@@ -38,6 +41,19 @@ public class CMenderDataManager {
         } catch (IOException e) {
             CliReporting.error("failed to create data directory: %s", e.getMessage());
             Logging.FILE_LOGGER.fatal("failed to create data directory: {}", e.getMessage());
+            //System.exit(1); // todo
+        }
+
+        DIAGNOSTIC_SEVERITY_MAPPING_FILEPATH = Paths.get(DATA_DIRPATH, "diag_severity_mapping.json").toString();
+
+        // copy the default severity mapping file to the mending directory
+
+        try {
+            Files.copy(CMenderDataManager.class.getClassLoader().getResourceAsStream("diag_severity_mapping.json"),
+                    Paths.get(DIAGNOSTIC_SEVERITY_MAPPING_FILEPATH), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            CliReporting.error("failed to copy default severity mapping file: %s", e.getMessage());
+            Logging.FILE_LOGGER.error("failed to copy default severity mapping file: {}", e.getMessage());
         }
     }
 

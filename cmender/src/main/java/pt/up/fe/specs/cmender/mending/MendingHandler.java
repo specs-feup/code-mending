@@ -534,8 +534,8 @@ public interface MendingHandler {
 
             Files.createFile(headerFilePath);
         } catch (Exception e) {
-            CliReporting.error("Failed to handle file not found: " + e.getMessage());
-            Logging.FILE_LOGGER.error("Failed to handle file not found: {}", e.getMessage());
+            CliReporting.error("Failed to handle missing pp file: " + e.getMessage());
+            Logging.FILE_LOGGER.error("Failed to handle missing pp file: {}", e.getMessage());
         }
 
         // TODO we can try to find the file in the include paths and add it to the mending table

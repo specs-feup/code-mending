@@ -66,7 +66,7 @@ public class MendingEngine {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
         this.unknownDiagsFrequency = new ConcurrentHashMap<>(); // TODO is this the best choice?
-        this.diagnosticAnalysis = new BasicFirstErrorAnalysis();
+        this.diagnosticAnalysis = new BasicMultipleErrorAnalysis();
         this.mendingHandler = new SequentialMendingHandler();
     }
 

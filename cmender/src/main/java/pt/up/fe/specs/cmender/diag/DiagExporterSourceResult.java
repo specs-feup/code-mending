@@ -1,6 +1,8 @@
 package pt.up.fe.specs.cmender.diag;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public record DiagExporterSourceResult(
         String file,
@@ -33,5 +35,29 @@ public record DiagExporterSourceResult(
         }
 
         return null;
+    }
+
+    public List<Integer> getDiagIdxs(DiagnosticID id) {
+        var diags = new ArrayList<Integer>();
+
+        for (int i = 0; i < this.diags.size(); i++) {
+            if (this.diags.get(i).id() == id.id()) {
+                diags.add(i);
+            }
+        }
+
+        return diags;
+    }
+
+    public List<Integer> getDiagIdxs(Set<DiagnosticID> ids) {
+        var diags = new ArrayList<Integer>();
+
+        for (int i = 0; i < this.diags.size(); i++) {
+            if (ids.contains(DiagnosticID.fromIntID(this.diags.get(i).id()))) {
+                diags.add(i);
+            }
+        }
+
+        return diags;
     }
 }
