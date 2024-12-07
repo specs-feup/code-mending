@@ -24,7 +24,8 @@ public class SequentialMendingHandler implements MendingHandler {
                 case DiagnosticID.ERR_TYPECHECK_CONVERT_INCOMPATIBLE ->        adjustConversionTypesHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_TYPECHECK_INVALID_OPERANDS ->            adjustOperandTypesHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_PP_FILE_NOT_FOUND ->                     createHeaderFileHeuristic(diag, mendingTable, mendingDirData);
-                case DiagnosticID.ERR_TYPECHECK_DECL_INCOMPLETE_TYPE ->        defineTagTypeHeuristic(diag, mendingTable);
+                case DiagnosticID.ERR_TYPECHECK_DECL_INCOMPLETE_TYPE,
+                     DiagnosticID.ERR_FUNC_DEF_INCOMPLETE_RESULT ->            defineTagTypeHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_NO_MEMBER ->                             addStructMemberHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_UNKNOWN_TYPENAME ->                      createTypedefTypeAliasHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_UNKNOWN_TYPENAME_SUGGEST ->              createTypedefTypeAliasSuggestHeuristic(diag, mendingTable);
