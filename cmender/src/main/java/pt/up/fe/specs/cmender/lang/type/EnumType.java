@@ -1,5 +1,7 @@
 package pt.up.fe.specs.cmender.lang.type;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
@@ -19,7 +21,8 @@ public class EnumType implements Type {
     // Reference to the symbol that represents this enum type
     // private EnumSymbol enumSymbol;
 
-    public EnumType(String name) {
+    @JsonCreator
+    public EnumType(@JsonProperty("name") String name) {
         this.name = name;
     }
 

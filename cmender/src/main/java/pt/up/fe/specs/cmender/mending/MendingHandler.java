@@ -566,7 +566,8 @@ public interface MendingHandler {
         } else if (qualType.type().isEnumType()) {
             var enumType = (EnumType) qualType.type();
 
-            var enumSymbol = new EnumSymbol(enumType.name());
+            var enumSymbol = new EnumSymbol(enumType.name(),
+                    List.of(MendingTypeNameGenerator.newEnumConstantName())); // we need to add a starting enum constant because it's mandatory for the definition
 
             mendingTable.put(enumSymbol);
         } else {

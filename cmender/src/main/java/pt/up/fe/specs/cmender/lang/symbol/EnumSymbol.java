@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 @Accessors(fluent = true)
 public class EnumSymbol extends Symbol {
 
-    private List<String> values;
+    private List<String> values; // Enumeration constants
 
     public EnumSymbol(String name, List<String> values) {
         super(name);

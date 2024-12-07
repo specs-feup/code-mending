@@ -238,7 +238,6 @@ public class MendingTable {
         var symbols = new ArrayList<Symbol>();
         symbols.addAll(typedefs.values());
         symbols.addAll(records.values());
-        symbols.addAll(enums.values());
 
         for (var symbol : symbols) {
             graph.put(symbol, new HashSet<>());
@@ -270,6 +269,7 @@ public class MendingTable {
 
         writeDecls(bufferedWriter, recordsForForwardDecl);
         writeDefs(bufferedWriter, orderedSymbols);
+        writeDefs(bufferedWriter, new ArrayList<>(enums.values()));
         writeDefs(bufferedWriter, new ArrayList<>(variables.values()));
         writeDefs(bufferedWriter, new ArrayList<>(functions.values()));
 
