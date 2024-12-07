@@ -61,7 +61,7 @@ public class EnumType implements Type {
 
     @Override
     public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
-        var enumSymbol = table.structs().get(name);
+        var enumSymbol = table.enums().get(name);
 
         // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
         if (enumSymbol == null) {
