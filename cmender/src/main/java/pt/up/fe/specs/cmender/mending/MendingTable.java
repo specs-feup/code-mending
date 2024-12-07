@@ -11,6 +11,7 @@ import pt.up.fe.specs.cmender.lang.symbol.RecordSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.Symbol;
 import pt.up.fe.specs.cmender.lang.symbol.TypedefSymbol;
 import pt.up.fe.specs.cmender.lang.symbol.VariableSymbol;
+import pt.up.fe.specs.cmender.lang.type.TagTypeKind;
 import pt.up.fe.specs.cmender.lang.type.TypeName;
 
 import java.io.BufferedWriter;
@@ -34,7 +35,7 @@ public class MendingTable {
 
     private final Map<String, TypedefSymbol> typedefs;
 
-    private final Map<String, RecordSymbol> structs;
+    private final Map<String, RecordSymbol> records;
 
     private final Map<String, EnumSymbol> enums;
 
@@ -53,7 +54,7 @@ public class MendingTable {
         variables = new HashMap<>();
         functions = new HashMap<>();
         typedefs = new HashMap<>();
-        structs = new HashMap<>();
+        records = new HashMap<>();
         enums = new HashMap<>();
         typeNameToCorrespondingSymbol = new HashMap<>();
         arraySubscriptToCorrespondingSymbol = new HashMap<>();
@@ -81,8 +82,8 @@ public class MendingTable {
         typedefs.put(typedef.name(), typedef);
     }
 
-    public void put(RecordSymbol struct) {
-        structs.put(struct.name(), struct);
+    public void put(RecordSymbol record) {
+        records.put(record.name(), record);
     }
 
     public void put(EnumSymbol enumSymbol) {
@@ -160,11 +161,11 @@ public class MendingTable {
             return false;
         }
 
-        if (typeName.tagKind() == TypeName.TagTypeKind.STRUCT) {
-            return structs.containsKey(typeName.identifier());
+        if (typeName.tagKind() == TagTypeKind.STRUCT || typeName.tagKind() == TagTypeKind.UNION) {
+            return records.containsKey(typeName.identifier());
         }
 
-        if (typeName.tagKind() == TypeName.TagTypeKind.ENUM) {
+        if (typeName.tagKind() == TagTypeKind.ENUM) {
             return enums.containsKey(typeName.identifier());
         }
 
@@ -210,11 +211,11 @@ public class MendingTable {
             return false;
         }
 
-        if (typeName.tagKind() == TypeName.TagTypeKind.STRUCT) {
-            return !structs.containsKey(typeName.identifier());
+        if (typeName.tagKind() == TagTypeKind.STRUCT || typeName.tagKind() == TagTypeKind.UNION) {
+            return !records.containsKey(typeName.identifier());
         }
 
-        if (typeName.tagKind() == TypeName.TagTypeKind.ENUM) {
+        if (typeName.tagKind() == TagTypeKind.ENUM) {
             return !enums.containsKey(typeName.identifier());
         }
 
@@ -230,13 +231,13 @@ public class MendingTable {
     //   since the include of the mendfile will be expanded at the top of the file and will not be able
     //   to see the declarations
     // Functions and variables are not included in the dependencies because
-    // they do not declare symbols that structs and typedefs use in their definitions
+    // they do not declare symbols that tags and typedefs use in their definitions
     public Map<Symbol, Set<Symbol>> buildDependencyGraph() {
         var graph = new HashMap<Symbol, Set<Symbol>>();
 
         var symbols = new ArrayList<Symbol>();
         symbols.addAll(typedefs.values());
-        symbols.addAll(structs.values());
+        symbols.addAll(records.values());
         symbols.addAll(enums.values());
 
         for (var symbol : symbols) {
@@ -257,7 +258,7 @@ public class MendingTable {
 
         var depGraph = buildDependencyGraph();
 
-        var structsForForwardDecl = getRequiredStructsForForwardDecl(depGraph);
+        var recordsForForwardDecl = getRequiredrecordsForForwardDecl(depGraph);
 
         var orderedSymbols = topologicalSort(depGraph);
 
@@ -267,7 +268,7 @@ public class MendingTable {
             //throw new IllegalStateException("Circular dependency detected");
         }
 
-        writeDecls(bufferedWriter, structsForForwardDecl);
+        writeDecls(bufferedWriter, recordsForForwardDecl);
         writeDefs(bufferedWriter, orderedSymbols);
         writeDefs(bufferedWriter, new ArrayList<>(variables.values()));
         writeDefs(bufferedWriter, new ArrayList<>(functions.values()));
@@ -278,23 +279,23 @@ public class MendingTable {
     }
 
     // Circular dependencies are allowed when a struct includes a pointer to itself or when
-    // two structs include pointers to each other (mutual recursion with ptrs to structs)
-    // In other words, with pointers, we don't require full definitions of structs (and thus no forward declarations)
+    // two records include pointers to each other (mutual recursion with ptrs to records)
+    // In other words, with pointers, we don't require full definitions of records (and thus no forward declarations)
 
 
     // Forward declarations are required sometimes when two declarations are legal
 
-    // TODO all of this needs to be well researched. find exactly what declarations are illegal and when forward declarations are required (of structs and typedefs)
-    private List<Symbol> getRequiredStructsForForwardDecl(Map<Symbol, Set<Symbol>> depGraph) throws IOException {
-        var structsForForwardDecl = new ArrayList<Symbol>();
+    // TODO all of this needs to be well researched. find exactly what declarations are illegal and when forward declarations are required (of records and typedefs)
+    private List<Symbol> getRequiredrecordsForForwardDecl(Map<Symbol, Set<Symbol>> depGraph) throws IOException {
+        var recordsForForwardDecl = new ArrayList<Symbol>();
 
         for (var symbol : depGraph.keySet()) {
             /*if (symbol instanceof Struct && depGraph.get(symbol).contains(symbol)) {
-                structsForForwardDecl.add(symbol);
+                recordsForForwardDecl.add(symbol);
             }*/
         }
 
-        return structsForForwardDecl;
+        return recordsForForwardDecl;
     }
 
     private List<Symbol> topologicalSort(Map<Symbol, Set<Symbol>> depGraph) {

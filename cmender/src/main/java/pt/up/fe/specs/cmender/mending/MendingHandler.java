@@ -597,7 +597,7 @@ public interface MendingHandler {
                     return;
                 }
 
-                var recordSymbol = mendingTable.structs().get(recordDeclContext.name());
+                var recordSymbol = mendingTable.records().get(recordDeclContext.name());
 
                 if (recordSymbol == null) {
                     CliReporting.error("No member diagnostic for undeclared struct");

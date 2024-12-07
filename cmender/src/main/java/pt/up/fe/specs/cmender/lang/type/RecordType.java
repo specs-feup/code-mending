@@ -78,7 +78,7 @@ public class RecordType implements Type {
 
     @Override
     public Set<Symbol> getDirectDependencies(MendingTable table) {
-        var recordSymbol = table.structs().get(name);
+        var recordSymbol = table.records().get(name);
 
         // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
         if (recordSymbol == null) {
@@ -95,7 +95,7 @@ public class RecordType implements Type {
 
     @Override
     public void addDirectDependencies(List<Symbol> dependencies, MendingTable table) {
-        var recordSymbol = table.structs().get(name);
+        var recordSymbol = table.records().get(name);
 
         // If the symbol is not found, it might mean it is already a declared type on the code (TODO is this correct?)
         if (recordSymbol == null) {
