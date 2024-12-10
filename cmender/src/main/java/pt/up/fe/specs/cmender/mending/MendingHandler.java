@@ -68,7 +68,7 @@ public interface MendingHandler {
         } else {
             CliReporting.error("Could not match diagnostic args for C99 implicit function declaration");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for C99 implicit function declaration");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for C99 implicit function declaration");
         }
 
         var returnQualType = new QualType(
@@ -106,6 +106,7 @@ public interface MendingHandler {
         } else {
             CliReporting.error("Could not match diagnostic args for undeclared variable use");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for undeclared variable use");
+            throw new RuntimeException("Could not match diagnostic args for undeclared variable use");
         }
     }
 
@@ -122,7 +123,7 @@ public interface MendingHandler {
         } else {
             CliReporting.error("Could not match diagnostic args for undeclared variable use with suggestion");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for undeclared variable use with suggestion");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for undeclared variable use with suggestion");
         }
 
         createMissingVariable(varName, mendingTable);
@@ -140,7 +141,7 @@ public interface MendingHandler {
                 SIntArg.class))) {
             CliReporting.error("Could not match diagnostic args for incompatible type conversion");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for incompatible type conversion");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for incompatible type conversion");
         }
 
         // lhs is the type of the variable being initialized, rhs is the type of the expression
@@ -158,7 +159,7 @@ public interface MendingHandler {
 
         if (lhsTypeName.isEmpty() && rhsTypeName.isEmpty()) {
             CliReporting.error("Both sides are derived types without a name. Not yet implemented. This ");
-            return;
+            throw new RuntimeException("Both sides are derived types without a name. Not yet implemented. This ");
         }
 
         var lhsIsSourceOfTruth = lhsTypeName.isEmpty() ||
@@ -168,6 +169,7 @@ public interface MendingHandler {
 
         if (lhsIsSourceOfTruth && rhsIsSourceOfTruth) {
             CliReporting.error("Both sides are source of truth. Cant do anything");
+            throw new RuntimeException("Both sides are source of truth. Cant do anything");
         } else if (lhsIsSourceOfTruth ^ rhsIsSourceOfTruth) {
             var sourceOfTruthQualType = lhsIsSourceOfTruth ? lhsQualType : rhsQualType;
             var toBeChangedQualType = lhsIsSourceOfTruth ? rhsQualType : lhsQualType;
@@ -194,6 +196,7 @@ public interface MendingHandler {
             if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
                 // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
                 CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
+                throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type");
             } else if (lhsTypedefSymbol.canChangeAliasedType() ^ rhsTypedefSymbol.canChangeAliasedType()) {
                 var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? rhsTypedefSymbol : lhsTypedefSymbol;
                 var toBeChangedTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? lhsTypedefSymbol : rhsTypedefSymbol;
@@ -210,7 +213,7 @@ public interface MendingHandler {
                 if (commonPermittedTypes.isEmpty()) {
                     // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
                     CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
-                    return;
+                    throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
                 }
 
                 var sourceOfTruthTypedefSymbol = rhsTypedefSymbol;
@@ -246,7 +249,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class, QualTypeArg.class))) {
             CliReporting.error("Could not match diagnostic args for invalid operands");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for invalid operands");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for invalid operands");
         }
 
         var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
@@ -266,7 +269,7 @@ public interface MendingHandler {
 
         if (lhsTypeName.isEmpty() && rhsTypeName.isEmpty()) {
             CliReporting.error("Both sides are derived types without a name. Not yet implemented. This ");
-            return;
+            throw new RuntimeException("Both sides are derived types without a name. Not yet implemented. This ");
         }
 
         var lhsIsSourceOfTruth = lhsTypeName.isEmpty() ||
@@ -276,6 +279,7 @@ public interface MendingHandler {
 
         if (lhsIsSourceOfTruth && rhsIsSourceOfTruth) {
             CliReporting.error("Both sides are source of truth. Cant do anything");
+            throw new RuntimeException("Both sides are source of truth. Cant do anything");
         } else if (lhsIsSourceOfTruth ^ rhsIsSourceOfTruth) {
             System.out.println("One side is source of truth");
 
@@ -367,6 +371,7 @@ public interface MendingHandler {
                 typedefSymbol.setPermittedTypes(Set.of(TypeKind.BUILTIN, TypeKind.ENUM)); // TODO maybe we need to restrict to integral and not builtin
             } else {
                 CliReporting.error("Pointer arithmetic operation not supported. Something went wrong");
+                throw new RuntimeException("Pointer arithmetic operation not supported. Something went wrong");
             }
 
         } else if (sourceOfTruthQualType.type().isBuiltinType() || sourceOfTruthQualType.type().isEnumType()) {
@@ -392,6 +397,7 @@ public interface MendingHandler {
 
         } else { // source of truth is not a pointer, array or number or enum (i.e., is a struct or union)
             CliReporting.error("Source of truth is not a pointer, array or number or enum and is used in an invalid operation");
+            throw new RuntimeException("Source of truth is not a pointer, array or number or enum and is used in an invalid operation");
         }
     }
 
@@ -408,6 +414,7 @@ public interface MendingHandler {
         if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
             // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
             CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
+            throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type");
         } else if (lhsTypedefSymbol.canChangeAliasedType() ^ rhsTypedefSymbol.canChangeAliasedType()) {
             var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? lhsTypedefSymbol : rhsTypedefSymbol;
             var toBeChangedTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? rhsTypedefSymbol : lhsTypedefSymbol;
@@ -447,6 +454,7 @@ public interface MendingHandler {
                 // if is pointer or array, we dont do anything
             } else { // source of truth is not a pointer, array or number or enum (i.e., is a struct or union)
                 CliReporting.error("Source of truth is not a pointer, array or number or enum and is used in an invalid operation (binary operation)");
+                throw new RuntimeException("Source of truth is not a pointer, array or number or enum and is used in an invalid operation (binary operation)");
             }
         } else { // both can change aliased type
 
@@ -505,7 +513,7 @@ public interface MendingHandler {
             if (commonPermittedTypes.isEmpty()) {
                 // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
                 CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
-                return;
+                throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
             }
 
 
@@ -523,7 +531,7 @@ public interface MendingHandler {
             if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(StdStringArg.class))) {
                 CliReporting.error("Could not match diagnostic args for file not found");
                 Logging.FILE_LOGGER.error("Could not match diagnostic args for file not found");
-                return;
+                throw new RuntimeException("Could not match diagnostic args for file not found");
             }
 
             var stdStringArg = (StdStringArg) diag.description().args().getFirst();
@@ -536,6 +544,7 @@ public interface MendingHandler {
         } catch (Exception e) {
             CliReporting.error("Failed to handle missing pp file: " + e.getMessage());
             Logging.FILE_LOGGER.error("Failed to handle missing pp file: {}", e.getMessage());
+            throw new RuntimeException("Failed to handle missing pp file: " + e.getMessage());
         }
 
         // TODO we can try to find the file in the include paths and add it to the mending table
@@ -552,7 +561,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class))) {
             CliReporting.error("Could not match diagnostic args for incomplete type declaration");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for incomplete type declaration");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for incomplete type declaration");
         }
 
         var qualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
@@ -573,6 +582,7 @@ public interface MendingHandler {
         } else {
             CliReporting.error("Incomplete type declaration for non-record and non-enum type");
             Logging.FILE_LOGGER.error("Incomplete type declaration for non-record and non-enum type");
+            throw new RuntimeException("Incomplete type declaration for non-record and non-enum type");
         }
     }
 
@@ -582,7 +592,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, DeclContextArg.class))) {
             CliReporting.error("Could not match diagnostic args for no member diagnostic");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for no member diagnostic");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for no member diagnostic");
         }
 
         var memberName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
@@ -596,7 +606,7 @@ public interface MendingHandler {
                         recordDeclContext.tagKind() != RecordType.RecordKind.UNION) {
                     CliReporting.error("No member diagnostic for non-struct record");
                     Logging.FILE_LOGGER.error("No member diagnostic for non-struct record");
-                    return;
+                    throw new RuntimeException("No member diagnostic for non-struct record");
                 }
 
                 var recordSymbol = mendingTable.records().get(recordDeclContext.name());
@@ -604,7 +614,7 @@ public interface MendingHandler {
                 if (recordSymbol == null) {
                     CliReporting.error("No member diagnostic for undeclared struct");
                     Logging.FILE_LOGGER.error("No member diagnostic for undeclared struct");
-                    return;
+                    throw new RuntimeException("No member diagnostic for undeclared struct");
                 }
 
                 var memberTypedefSymbol = createTypedefOfGeneratedStructType(Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY,
@@ -627,7 +637,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) {
             CliReporting.error("Could not match diagnostic args for unknown typename");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for unknown typename");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for unknown typename");
         }
 
         var typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
@@ -642,7 +652,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) {
             CliReporting.error("Could not match diagnostic args for unknown typename");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for unknown typename");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for unknown typename");
         }
 
         var typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
@@ -657,7 +667,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(dig.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
             CliReporting.error("Could not match diagnostic args for member reference suggestion");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for member reference suggestion");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for member reference suggestion");
         }
 
         var qualType = ((QualTypeArg) dig.description().args().getFirst()).qualType();
@@ -735,6 +745,7 @@ public interface MendingHandler {
             } else {
                 CliReporting.error("Unknown symbol type for subscript value");
                 Logging.FILE_LOGGER.error("Unknown symbol type for subscript value");
+                throw new RuntimeException("Unknown symbol type for subscript value");
             }
         } else {
             System.out.println("Did not find array subscript mapping for base: " + baseEncompassingCode);
@@ -808,6 +819,7 @@ public interface MendingHandler {
             } else {
                 CliReporting.error("Could not find variable name in subscript value");
                 Logging.FILE_LOGGER.error("Could not find variable name in subscript value");
+                throw new RuntimeException("Could not find variable name in subscript value");
             }
         }
     }
@@ -818,7 +830,7 @@ public interface MendingHandler {
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of())) {
             CliReporting.error("Could not match diagnostic args for subscript not integer");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for subscript not integer");
-            return;
+            throw new RuntimeException("Could not match diagnostic args for subscript not integer");
         }
 
         var identifier = diag.sourceRanges().getFirst().encompassingCode();

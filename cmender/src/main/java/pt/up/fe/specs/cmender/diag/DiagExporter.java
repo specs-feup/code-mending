@@ -20,7 +20,7 @@ public class DiagExporter {
         this.executablePath = executablePath;
     }
 
-    public DiagExporterResult run(DiagExporterInvocation invocation) throws DiagExporterException {
+    public DiagExporterResult run(DiagExporterInvocation invocation) throws DiagExporterException, DiagExporterDeserializationException {
         var args = invocation.asInvocationArgs();
         args.addFirst(executablePath);
 
@@ -71,14 +71,13 @@ public class DiagExporter {
             var matcher = pattern.matcher(versionResultOutput);
 
             return matcher.find();
-        } catch (DiagExporterException e) {
+        } catch (DiagExporterException | DiagExporterDeserializationException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // TODO think if this should throw a IllegalStateException or a custom DiagExporterException
-    private static List<DiagExporterSourceResult> readResults(String outputFilepath) {
+    private static List<DiagExporterSourceResult> readResults(String outputFilepath) throws DiagExporterDeserializationException {
         var mapper = new ObjectMapper();
 
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -87,7 +86,7 @@ public class DiagExporter {
             return mapper.readValue(bufferedReader, new TypeReference<>() {});
         } catch (IOException e) {
             Logging.FILE_LOGGER.error("cannot read output file: {}", outputFilepath, e);
-            throw new IllegalStateException(
+            throw new DiagExporterDeserializationException(
                     String.format("cannot read output file: %s", outputFilepath), e);
         }
     }

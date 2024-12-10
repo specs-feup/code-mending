@@ -5,6 +5,7 @@ import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.CMenderDataManager;
 import pt.up.fe.specs.cmender.data.MendingDirData;
 import pt.up.fe.specs.cmender.diag.DiagExporter;
+import pt.up.fe.specs.cmender.diag.DiagExporterDeserializationException;
 import pt.up.fe.specs.cmender.diag.DiagExporterException;
 import pt.up.fe.specs.cmender.diag.DiagExporterInvocation;
 import pt.up.fe.specs.cmender.diag.DiagExporterResult;
@@ -323,8 +324,9 @@ public class MendingEngine {
                         writeMendfile(mendingTable, mendingDirData, currentIteration);
                     }
 
-                    mendfileSize = SizeBundle.fromBytes(
-                            Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1);
+                    var size = Paths.get(mendingDirData.mendfilePath()).toFile().length() - MENDING_DISCLAIMER_IN_HEADER.getBytes().length - 1;
+
+                    mendfileSize = SizeBundle.fromBytes(size < 0 ? 0 : size);
                 }
 
                 System.out.println();
@@ -338,7 +340,7 @@ public class MendingEngine {
                         .mendfileSize(mendfileSize)
                         .diagExporterTime(TimeBundle.fromNanos(diagExporterTimedResult.elapsedTime()))
                         .build();
-            } catch (Exception e) {
+            } catch (Exception e) { // for unchecked exceptions
                 e.printStackTrace();
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
@@ -361,9 +363,10 @@ public class MendingEngine {
 
     private TimedResult<DiagExporterResult> callDiagExporter(MendingDirData mendingDirData, long iteration) {
         return TimeMeasure.measureElapsed(() -> {
+            DiagExporterResult result = null;
             try {
                 // TODO we dont need to always create the invocation since its arguments dont generally change between iterations of the same file
-                var result = diagExporter.run(
+                result = diagExporter.run(
                         DiagExporterInvocation
                                 .builder()
                                 .includePaths(List.of(mendingDirData.includePath()))
@@ -389,7 +392,14 @@ public class MendingEngine {
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not copy diags output file for iteration %d", iteration);
-                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.DIAG_EXPORTER, "could not copy diags output file", iteration, e);
+                return result;
+                // TODO the exception is not fatal (we dont use the copies), but we should log it and save in the report
+                //throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.DIAG_EXPORTER, "could not copy diags output file", iteration, e);
+            } catch (DiagExporterDeserializationException e) {
+                Logging.FILE_LOGGER.error(e.getMessage(), e);
+                CliReporting.error(e.getMessage());
+                CliReporting.error("could not deserialize Clang diagnostics from file: '%s'", mendingDirData.diagsFilePath());
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.DIAG_EXPORTER_RESULT_DESERIALIZATION, "could not deserialize Clang diagnostics", iteration, e);
             }
         });
     }

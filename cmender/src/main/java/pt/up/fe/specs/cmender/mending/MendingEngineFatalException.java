@@ -13,6 +13,7 @@ public class MendingEngineFatalException extends RuntimeException {
 
     public enum FatalType {
         DIAG_EXPORTER,
+        DIAG_EXPORTER_RESULT_DESERIALIZATION,
         MENDING,
         MENDFILE_WRITER;
 
