@@ -66,8 +66,8 @@ public class MendingEngine {
         diagExporter = new DiagExporter(menderInvocation.getDiagExporterPath());
         this.menderInvocation = menderInvocation;
         this.unknownDiagsFrequency = new ConcurrentHashMap<>(); // TODO is this the best choice?
-        this.diagnosticAnalysis = new BasicMultipleErrorAnalysis();
-        this.mendingHandler = new SequentialMendingHandler();
+        this.diagnosticAnalysis = new BasicFirstErrorAnalysis();
+        this.mendingHandler = new BasicSequentialMendingHandler();
     }
 
     public MendingEngineBundle execute() {
@@ -362,6 +362,7 @@ public class MendingEngine {
     private TimedResult<DiagExporterResult> callDiagExporter(MendingDirData mendingDirData, long iteration) {
         return TimeMeasure.measureElapsed(() -> {
             try {
+                // TODO we dont need to always create the invocation since its arguments dont generally change between iterations of the same file
                 var result = diagExporter.run(
                         DiagExporterInvocation
                                 .builder()

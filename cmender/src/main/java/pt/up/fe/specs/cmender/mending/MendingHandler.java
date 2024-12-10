@@ -576,7 +576,7 @@ public interface MendingHandler {
         }
     }
 
-     default void addStructMemberHeuristic(Diagnostic diag, MendingTable mendingTable) {
+     default void addRecordMemberHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("No member");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, DeclContextArg.class))) {
@@ -592,7 +592,8 @@ public interface MendingHandler {
             case RECORD: {
                 var recordDeclContext = (RecordDecl) declContext;
 
-                if (recordDeclContext.tagKind() != RecordType.RecordKind.STRUCT) {
+                if (recordDeclContext.tagKind() != RecordType.RecordKind.STRUCT &&
+                        recordDeclContext.tagKind() != RecordType.RecordKind.UNION) {
                     CliReporting.error("No member diagnostic for non-struct record");
                     Logging.FILE_LOGGER.error("No member diagnostic for non-struct record");
                     return;
