@@ -311,7 +311,7 @@ public interface MendingHandler {
         // TODO for now assume that it's only number operands, and not _Bool operands
     }
 
-    private  void handleInvalidOperandsWithOneSideSourceOfTruth(
+    private void handleInvalidOperandsWithOneSideSourceOfTruth(
             QualType lhsQualType,
             QualType rhsQualType,
             boolean lhsIsSourceOfTruth,
@@ -418,7 +418,7 @@ public interface MendingHandler {
         }
     }
 
-    private  void handleInvalidOperandsWithNoSideSourceOfTruth(
+    private void handleInvalidOperandsWithNoSideSourceOfTruth(
             QualType lhsQualType,
             QualType rhsQualType,
             TypeName lhsTypeName,

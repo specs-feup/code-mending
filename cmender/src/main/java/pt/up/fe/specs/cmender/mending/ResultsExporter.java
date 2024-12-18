@@ -62,6 +62,10 @@ public class ResultsExporter {
     }
 
     private static void exportMendingDir(Path outputPath, MendingDirData mendingDirData, CMenderInvocation invocation) throws IOException {
+        if (mendingDirData == null) {
+            System.out.println("mendingDirData is null for " + outputPath);
+            return;
+        }
         // TODO validate filename. the source file name should not have any special characters
         //    because it will be used as a directory name
         var mendingDirName = Paths.get(mendingDirData.sourceFilePath()).getFileName().toString() +

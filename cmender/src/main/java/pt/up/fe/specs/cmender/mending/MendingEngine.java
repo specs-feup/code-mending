@@ -110,6 +110,13 @@ public class MendingEngine {
 
                 var bundle = mend(file);
 
+                if (bundle.mendingDirData() == null) {
+                    CliReporting.warning("could not create mending dir for file: '%s'", file);
+                    Logging.FILE_LOGGER.warn("could not create mending dir for file: '{}'", file);
+
+                    continue;
+                }
+
                 successCount += bundle.sourceResult().success()? 1 : 0;
                 exceptionCount += bundle.sourceResult().fatalException() != null? 1 : 0;
 
@@ -219,7 +226,12 @@ public class MendingEngine {
 
         if (mendingDirData == null) {
             //continue;
-            throw new RuntimeException("mendingDirData is null");
+
+            return new MendBundle(SourceResult.builder()
+                    .success(false)
+                    .fatalException(new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDING_DIR_CREATION, "could not create mending dir", 0, null))
+                    .build(), null);
+            //throw new RuntimeException("mendingDirData is null");
         }
 
         String sourceFileCopy = mendingDirData.sourceFileCopyPath();
