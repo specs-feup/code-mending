@@ -32,6 +32,9 @@ public class CliArgsParser {
     private static final String CONTINUE_ON_UNKNOWN_DIAGNOSTIC_SHORT = "cont-on-unknown-diag";
     private static final String CONTINUE_ON_UNKNOWN_DIAGNOSTIC_LONG = "continue-on-unknown-diag";
 
+    private static final String REPORT_PER_SOURCE_SHORT = "rps";
+    private static final String REPORT_PER_SOURCE_LONG = "report-per-source";
+
     private static final String OUTPUT_SHORT = "o";
     private static final String OUTPUT_LONG = "output";
 
@@ -82,6 +85,10 @@ public class CliArgsParser {
             .addOption(Option.builder(CONTINUE_ON_UNKNOWN_DIAGNOSTIC_SHORT)
                 .longOpt(CONTINUE_ON_UNKNOWN_DIAGNOSTIC_LONG)
                 .desc("Continue even when an unknown diagnostic is found during a mending iteration")
+                .build())
+            .addOption(Option.builder(REPORT_PER_SOURCE_SHORT)
+                .longOpt(REPORT_PER_SOURCE_LONG)
+                .desc("Create a report per source")
                 .build())
             .addOption(Option.builder(OUTPUT_SHORT)
                 .longOpt(OUTPUT_LONG)
@@ -160,6 +167,7 @@ public class CliArgsParser {
                     .createMendfileOnlyOnAlterations(cmd.hasOption(MENDFILE_ONLY_ON_ALTERATIONS_SHORT))
                     .continueOnUnknownDiagnostic(cmd.hasOption(CONTINUE_ON_UNKNOWN_DIAGNOSTIC_SHORT))
                     .output(cmd.getOptionValue(OUTPUT_SHORT, "./output"))
+                    .reportPerSource(cmd.hasOption(REPORT_PER_SOURCE_SHORT))
                     .outputDiagsOutput(cmd.hasOption(OUTPUT_DIAGS_SHORT))
                     .diagsOutputFilename(cmd.getOptionValue(DIAGS_OUTPUT_FILENAME_SHORT, "cmender_diags_output.json"))
                     .reportFilename(cmd.getOptionValue(REPORT_FILENAME_SHORT, "cmender_report.json"))

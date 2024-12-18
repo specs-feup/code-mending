@@ -16,5 +16,6 @@ public record MendingDirData(
         List<String> mendfileCopyPaths,
         String includePath,
         String diagsDirPath,
-        String mendfileCopiesDirPath
+        String mendfileCopiesDirPath,
+        String sourceReportPath
 ) { }

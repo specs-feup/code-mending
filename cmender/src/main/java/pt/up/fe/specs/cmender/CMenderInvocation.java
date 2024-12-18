@@ -50,6 +50,9 @@ public class CMenderInvocation {
     private boolean continueOnUnknownDiagnostic = false;
 
     @Builder.Default
+    private boolean reportPerSource = false;
+
+    @Builder.Default
     private String output = "./output";
 
     @Builder.Default

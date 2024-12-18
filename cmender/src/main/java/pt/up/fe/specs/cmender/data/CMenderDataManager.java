@@ -136,6 +136,7 @@ public class CMenderDataManager {
                     .includePath(includeDirPath.toFile().getCanonicalPath()) // TODO improve
                     .diagsDirPath(diagsDirPath.toFile().getCanonicalPath()) // TODO improve
                     .mendfileCopiesDirPath(mendfileCopiesDirPath.toFile().getCanonicalPath()) // TODO improve
+                    .sourceReportPath(Paths.get(mendingDirPath.toString(), "source_report.json").toFile().getCanonicalPath()) // TODO improve
                     .build();
             //return sourceFileCopyPath.toFile().getCanonicalPath();
         } catch (IOException e) {

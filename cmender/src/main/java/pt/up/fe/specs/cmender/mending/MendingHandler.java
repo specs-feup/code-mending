@@ -59,16 +59,16 @@ public interface MendingHandler {
     // TODO find if we can have the handlers as objects (also they can be placed in the enum DiagnosticID)
     //  or in terms of performance it is better to have them as static methods
     default void declareFunctionHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("[C99 implicit function declaration]");
+        System.out.println("[declareFunctionHeuristic]");
 
         String functionName;
 
-        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) {
+        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) { // ext_implicit_function_decl_c99
             functionName = ((IdentifierArg) diag.description().args().getFirst()).name();
         } else {
-            CliReporting.error("Could not match diagnostic args for C99 implicit function declaration");
-            Logging.FILE_LOGGER.error("Could not match diagnostic args for C99 implicit function declaration");
-            throw new RuntimeException("Could not match diagnostic args for C99 implicit function declaration");
+            CliReporting.error("Could not match diagnostic args for declareFunctionHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for declareFunctionHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for declareFunctionHeuristic");
         }
 
         var returnQualType = new QualType(
@@ -95,9 +95,28 @@ public interface MendingHandler {
         mendingTable.putControlledTypedefAliasMapping(typedefSymbol.typedefType().name(), function);
     }
 
-     default void declareVariableHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("Undeclared variable use");
+    default void declareVariableOrTypedefHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[declareVariableOrTypedefHeuristic]");
         // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
+
+        String varName;
+        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class))) { // err_undeclared_var_use
+            varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
+        } else if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, StdStringArg.class))) { // err_undeclared_var_use_suggest
+            varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
+        } else if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) { // err_undeclared_var_use_suggest
+            varName = ((IdentifierArg) diag.description().args().getFirst()).name();
+        } else {
+            CliReporting.error("Could not match diagnostic args for declareVariableOrTypedefHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for declareVariableOrTypedefHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for declareVariableOrTypedefHeuristic");
+        }
+
+        createMissingVariable(varName, mendingTable);
+    }
+
+    /*default void declareVariableHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("Undeclared variable use");
 
         if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class))) {
             var varName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
@@ -110,9 +129,8 @@ public interface MendingHandler {
         }
     }
 
-     default void declareVariableSuggestHeuristic(Diagnostic diag, MendingTable mendingTable) {
+    default void declareVariableSuggestHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Undeclared variable use with suggestion");
-        // todo this type of diagnostic can also be raised when there is a type name from a typedef that is not defined
 
         String varName;
 
@@ -127,11 +145,11 @@ public interface MendingHandler {
         }
 
         createMissingVariable(varName, mendingTable);
-    }
+    }*/
 
-     default void adjustConversionTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
+    default void adjustConversionTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
         // TODO conversions of return types are not being handled (return type is source of truth)
-        System.out.println("[Incompatible type conversion]");
+        System.out.println("[adjustConversionTypesHeuristic]");
         // FIXME non generated typedef names are not being taken into account
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(
                 QualTypeArg.class,
@@ -139,9 +157,9 @@ public interface MendingHandler {
                 SIntArg.class,
                 UIntArg.class,
                 SIntArg.class))) {
-            CliReporting.error("Could not match diagnostic args for incompatible type conversion");
-            Logging.FILE_LOGGER.error("Could not match diagnostic args for incompatible type conversion");
-            throw new RuntimeException("Could not match diagnostic args for incompatible type conversion");
+            CliReporting.error("Could not match diagnostic args for adjustConversionTypesHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustConversionTypesHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for adjustConversionTypesHeuristic");
         }
 
         // lhs is the type of the variable being initialized, rhs is the type of the expression
@@ -241,15 +259,15 @@ public interface MendingHandler {
         // TODO multiple declarator
     }
 
-     default void adjustOperandTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
+    default void adjustOperandTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
         // TODO unary operations are not being handled
         // TODO in "==" operation, both operands can be pointers
-        System.out.println("[Invalid operands]");
+        System.out.println("[adjustOperandTypesHeuristic]");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class, QualTypeArg.class))) {
             CliReporting.error("Could not match diagnostic args for invalid operands");
-            Logging.FILE_LOGGER.error("Could not match diagnostic args for invalid operands");
-            throw new RuntimeException("Could not match diagnostic args for invalid operands");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustOperandTypesHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for adjustOperandTypesHeuristic");
         }
 
         var lhsQualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
@@ -292,7 +310,6 @@ public interface MendingHandler {
 
         // TODO for now assume that it's only number operands, and not _Bool operands
     }
-
 
     private  void handleInvalidOperandsWithOneSideSourceOfTruth(
             QualType lhsQualType,
@@ -520,8 +537,9 @@ public interface MendingHandler {
         }
     }
 
-     default void createHeaderFileHeuristic(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
-        System.out.println("File not found");
+
+    default void createHeaderFileHeuristic(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
+        System.out.println("[createHeaderFileHeuristic]");
 
         // INSIGHT: This diagnostic's level is fatal by default. clang will stop the compilation process if this diagnostic is raised
         var includePath = mendingDirData.includePath();
@@ -529,9 +547,9 @@ public interface MendingHandler {
         try {
 
             if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(StdStringArg.class))) {
-                CliReporting.error("Could not match diagnostic args for file not found");
-                Logging.FILE_LOGGER.error("Could not match diagnostic args for file not found");
-                throw new RuntimeException("Could not match diagnostic args for file not found");
+                CliReporting.error("Could not match diagnostic args for createHeaderFileHeuristic");
+                Logging.FILE_LOGGER.error("Could not match diagnostic args for createHeaderFileHeuristic");
+                throw new RuntimeException("Could not match diagnostic args for createHeaderFileHeuristic");
             }
 
             var stdStringArg = (StdStringArg) diag.description().args().getFirst();
@@ -551,8 +569,8 @@ public interface MendingHandler {
 
     }
 
-     default void defineTagTypeHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("Incomplete type declaration");
+    default void defineTagTypeHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[defineTagTypeHeuristic]");
 
         // Most certainly this diagnostic only happens if the type is one whose name we dont control
         //  but have to declare it to be able to use it in the code
@@ -586,13 +604,13 @@ public interface MendingHandler {
         }
     }
 
-     default void addRecordMemberHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("No member");
+    default void addRecordMemberHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[addRecordMemberHeuristic]");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(DeclarationNameArg.class, DeclContextArg.class))) {
-            CliReporting.error("Could not match diagnostic args for no member diagnostic");
-            Logging.FILE_LOGGER.error("Could not match diagnostic args for no member diagnostic");
-            throw new RuntimeException("Could not match diagnostic args for no member diagnostic");
+            CliReporting.error("Could not match diagnostic args for addRecordMemberHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for addRecordMemberHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for addRecordMemberHeuristic");
         }
 
         var memberName = ((DeclarationNameArg) diag.description().args().getFirst()).name();
@@ -631,7 +649,25 @@ public interface MendingHandler {
         }
     }
 
-     default void createTypedefTypeAliasHeuristic(Diagnostic diag, MendingTable mendingTable) {
+    default void declareTypedefTypeAliasHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[declareTypedefTypeAliasHeuristic]");
+
+        String typedefName;
+        if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) { // err_unknown_typename
+            typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
+        } else if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) { // err_unknown_typename_suggest
+            typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
+        } else {
+            CliReporting.error("Could not match diagnostic args for declareTypedefTypeAliasHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for declareTypedefTypeAliasHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for declareTypedefTypeAliasHeuristic");
+        }
+
+        createTypedefOfGeneratedStructType(typedefName, Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY,
+                TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
+    }
+
+    /*default void createTypedefTypeAliasHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Unknown typename");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) {
@@ -646,7 +682,7 @@ public interface MendingHandler {
                 TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
     }
 
-     default void createTypedefTypeAliasSuggestHeuristic(Diagnostic diag, MendingTable mendingTable) {
+    default void createTypedefTypeAliasSuggestHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("Unknown typename with suggestion");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) {
@@ -659,15 +695,15 @@ public interface MendingHandler {
 
         createTypedefOfGeneratedStructType(typedefName, Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY,
                 TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
-    }
+    }*/
 
-     default void adjustMemberReferenceHeuristic(Diagnostic dig, MendingTable mendingTable) {
-        System.out.println("[Member reference suggestion]");
+    default void adjustMemberReferenceHeuristic(Diagnostic dig, MendingTable mendingTable) {
+        System.out.println("[adjustMemberReferenceHeuristic]");
 
         if (!DiagnosticArgsMatcher.match(dig.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
-            CliReporting.error("Could not match diagnostic args for member reference suggestion");
-            Logging.FILE_LOGGER.error("Could not match diagnostic args for member reference suggestion");
-            throw new RuntimeException("Could not match diagnostic args for member reference suggestion");
+            CliReporting.error("Could not match diagnostic args for adjustMemberReferenceHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustMemberReferenceHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for adjustMemberReferenceHeuristic");
         }
 
         var qualType = ((QualTypeArg) dig.description().args().getFirst()).qualType();
@@ -692,8 +728,8 @@ public interface MendingHandler {
         }
     }
 
-     default void adjustSubscriptBaseHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("[Subscript value]");
+    default void adjustSubscriptBaseHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[adjustSubscriptBaseHeuristic]");
 
         var codeSnippet = diag.codeSnippet();
 
@@ -824,8 +860,8 @@ public interface MendingHandler {
         }
     }
 
-     default void convertSubscriptToIntegerHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        System.out.println("[Subscript not integer]");
+    default void convertSubscriptToIntegerHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[convertSubscriptToIntegerHeuristic]");
 
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of())) {
             CliReporting.error("Could not match diagnostic args for subscript not integer");
@@ -848,12 +884,12 @@ public interface MendingHandler {
 
     }
 
-     default void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
+    default void handleUnknown(Diagnostic diag, MendingTable mendingTable) {
         CliReporting.error("Unknown diagnostic ID '" + diag.labelId().toUpperCase() + "(" + diag.id() + ")' with message: " + diag.description().message());
         Logging.FILE_LOGGER.error("Unknown diagnostic ID '{}({})' with message: {}", diag.labelId().toUpperCase(), diag.id(), diag.description().message());
     }
 
-     default void createMissingVariable(String varName, MendingTable mendingTable) {
+    default void createMissingVariable(String varName, MendingTable mendingTable) {
         var typedefSymbol = createTypedefOfGeneratedStructType(
                 Set.of(TypeKind.BUILTIN, TypeKind.POINTER, TypeKind.ARRAY, TypeKind.RECORD,
                         TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
@@ -867,7 +903,7 @@ public interface MendingHandler {
     // Used for when a symbol (i.e., variable, function, and struct member) is DECLARED in the code, but
     //    their types are typedef names that are not defined in the code but are being used
     // They ARE NOT generated typedef names, but struct types are created for them
-     static TypedefSymbol createTypedefOfGeneratedStructType(
+    static TypedefSymbol createTypedefOfGeneratedStructType(
             String typedefName, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
 
         var structType = new RecordType(MendingTypeNameGenerator.newTagTypeName(), RecordType.RecordKind.STRUCT);
@@ -888,12 +924,12 @@ public interface MendingHandler {
     //    but is being used, and we need to create a new (starting/mock) type for it because we don't
     //    know its type yet.
     // They ARE generated typedef names, and struct types are created for them
-     static TypedefSymbol createTypedefOfGeneratedStructType(
+    static TypedefSymbol createTypedefOfGeneratedStructType(
             Set<TypeKind> permittedTypes, MendingTable mendingTable) {
         return createTypedefOfGeneratedStructType(MendingTypeNameGenerator.newTypedefAliasName(), permittedTypes, mendingTable);
     }
 
-     static TypedefSymbol createTypedef(String typedefName, QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
+    static TypedefSymbol createTypedef(String typedefName, QualType qualType, Set<TypeKind> permittedTypes, MendingTable mendingTable) {
         var typedefType = new TypedefType(typedefName, qualType);
 
         var typedefSymbol = new TypedefSymbol(typedefType.name(), typedefType, permittedTypes);

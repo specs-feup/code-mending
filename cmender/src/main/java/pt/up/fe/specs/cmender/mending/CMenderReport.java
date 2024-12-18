@@ -27,5 +27,6 @@ public record CMenderReport(
         double fatalExceptionOverUnsuccessfulRatio,
 
         Map<String, Integer> unknownDiagsFrequency,
+        long uniqueUnknownDiagsCount,
         List<SourceResult> sourceResults
 ) { }

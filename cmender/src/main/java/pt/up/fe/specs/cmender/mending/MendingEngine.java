@@ -1,5 +1,6 @@
 package pt.up.fe.specs.cmender.mending;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import pt.up.fe.specs.cmender.CMenderInvocation;
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.CMenderDataManager;
@@ -32,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class MendingEngine {
     private static final String MENDING_DISCLAIMER_IN_SOURCE = """
@@ -85,13 +87,21 @@ public class MendingEngine {
         //   It involves changing the logic the engine and exporting the mending dir
         // TODO how should multithreading be handled? (e.g., one thread per batch of files etc.)
 
-        SourceResult[] sourceResults = new SourceResult[files.size()];
+        SourceResult[] sourceResults = menderInvocation.isReportPerSource() ? new SourceResult[files.size()] : null;
 
         MendingDirData[] mendingDirDatas = new MendingDirData[files.size()];
 
+        AtomicLong successCountAtomic = new AtomicLong();
+        AtomicLong exceptionCountAtomic = new AtomicLong();
+        // For single-threaded mode (avoid the overhead of atomic operations when we are just using one thread)) TODO maybe we should even not create the AtomicLongs in single-threaded mode
+        long successCount = 0;
+        long exceptionCount = 0;
+
         // TODO validate number of threads
 
-        if (menderInvocation.getThreads() == 1) {
+        boolean singleThreaded = menderInvocation.getThreads() == 1;
+
+        if (singleThreaded) {
             CliReporting.info("running in single-thread mode");
 
             for (int i = 0; i < files.size(); i++) {
@@ -100,7 +110,16 @@ public class MendingEngine {
 
                 var bundle = mend(file);
 
-                sourceResults[i] = bundle.sourceResult();
+                successCount += bundle.sourceResult().success()? 1 : 0;
+                exceptionCount += bundle.sourceResult().fatalException() != null? 1 : 0;
+
+                if (menderInvocation.isReportPerSource()) {
+                    writeSourceReport(bundle.mendingDirData(), bundle.sourceResult());
+                } else {
+                    assert sourceResults != null;
+                    sourceResults[i] = bundle.sourceResult();
+                }
+
                 mendingDirDatas[i] = bundle.mendingDirData();
             }
         } else {
@@ -115,7 +134,22 @@ public class MendingEngine {
 
                 executorService.submit(() -> {
                     var bundle = mend(file);
-                    sourceResults[finalI] = bundle.sourceResult();
+
+                    if (bundle.sourceResult().success()) {
+                        successCountAtomic.incrementAndGet();
+                    }
+
+                    if (bundle.sourceResult().fatalException() != null) {
+                        exceptionCountAtomic.incrementAndGet();
+                    }
+
+                    if (menderInvocation.isReportPerSource()) {
+                        writeSourceReport(bundle.mendingDirData(), bundle.sourceResult());
+                    } else {
+                        assert sourceResults != null;
+                        sourceResults[finalI] = bundle.sourceResult();
+                    }
+
                     mendingDirDatas[finalI] = bundle.mendingDirData();
                 });
             }
@@ -138,10 +172,25 @@ public class MendingEngine {
             Logging.FILE_LOGGER.warn("not all files were processed, exiting");
         }*/
 
-        var sourceResultsList = Arrays.stream(sourceResults).toList();
-        var successCount = (int) sourceResultsList.stream().filter(SourceResult::success).count();
+        List<SourceResult> sourceResultsList;
+        if (menderInvocation.isReportPerSource()) {
+            sourceResultsList = new ArrayList<>();
+        } else {
+            assert sourceResults != null;
+            sourceResultsList = Arrays.stream(sourceResults).toList();
+        }
+
+        /*var successCount = (int) sourceResultsList.stream().filter(SourceResult::success).count();
         var unsuccessfulCount = files.size() - successCount;
-        var exceptionCount = (int) sourceResultsList.stream().filter(result -> result.fatalException() != null).count();
+        var exceptionCount = (int) sourceResultsList.stream().filter(result -> result.fatalException() != null).count();*/
+
+
+        if (!singleThreaded) {
+            successCount = successCountAtomic.get();
+            exceptionCount = exceptionCountAtomic.get();
+        }
+
+        var unsuccessfulCount = files.size() - successCount;
 
         var cmenderReport = CMenderReport.builder()
                 .invocation(menderInvocation)
@@ -157,7 +206,8 @@ public class MendingEngine {
                 .fatalExceptionOverUnsuccessfulRatio(unsuccessfulCount == 0? 0.0 : (double) exceptionCount / unsuccessfulCount)
 
                 .unknownDiagsFrequency(unknownDiagsFrequency)
-                .sourceResults(Arrays.stream(sourceResults).toList())
+                .uniqueUnknownDiagsCount(unknownDiagsFrequency.size())
+                .sourceResults(sourceResultsList)
                 .build();
 
         return new MendingEngineBundle(cmenderReport, Arrays.stream(mendingDirDatas).toList());
@@ -342,6 +392,7 @@ public class MendingEngine {
                         .build();
             } catch (Exception e) { // for unchecked exceptions
                 e.printStackTrace();
+                // TODO maybe we should only log here the exception's message and not the palce that generates the exception (i.e on the handlers) because then it is logged two times
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error(e.getMessage());
                 CliReporting.error("could not process diagnostics from file: '%s'", mendingDirData.diagsFilePath());
@@ -427,7 +478,20 @@ public class MendingEngine {
                 // TODO differentiaite between file writing errors and file copying errors
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
                 CliReporting.error("could not write mendfile: '%s'", MENDFILE_FILENAME);
-                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDFILE_WRITER, "could not write mendfile", currentIteration, e);
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDFILE_WRITER, String.format("could not write mendfile: '%s'", MENDFILE_FILENAME), currentIteration, e);
+            }
+        });
+    }
+
+    private long writeSourceReport(MendingDirData mendingDirData, SourceResult sourceResult) {
+        return TimeMeasure.measureElapsed(() -> {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.writerWithDefaultPrettyPrinter().writeValue(new File(mendingDirData.sourceReportPath()), sourceResult);
+            } catch (IOException e) {
+                Logging.FILE_LOGGER.error(e.getMessage(), e);
+                CliReporting.error("could not write source report: '%s'", mendingDirData.sourceReportPath());
+                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.SOURCE_RESULT_WRITER, String.format("could not write source report: '%s'", mendingDirData.sourceReportPath()), sourceResult.iterationCount(), e);
             }
         });
     }

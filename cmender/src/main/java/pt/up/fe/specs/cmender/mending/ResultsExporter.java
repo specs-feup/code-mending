@@ -50,7 +50,7 @@ public class ResultsExporter {
 
             for (var mendingDirData : mendingDirDatas) {
                 // NOTE we dont copy the temp dir straight to the output dir because of the invocation options
-                // that configure the output
+                //      that configure the output
                 exportMendingDir(outputPath, mendingDirData, invocation);
             }
         } catch (IOException e) {
@@ -88,6 +88,14 @@ public class ResultsExporter {
         if (invocation.isOutputDiagsOutput()) {
             var diagResults = Files.createDirectories(Paths.get(mendingOutputPath.toString(), "diagsOutputs"));
             FileUtils.copyDirectory(new File(mendingDirData.diagsDirPath()), new File(diagResults.toString()));
+        }
+
+        // export source report (if it exists)
+        if (invocation.isReportPerSource()) {
+            Files.copy(
+                    Paths.get(mendingDirData.sourceReportPath()),
+                    Paths.get(mendingOutputPath.toString(), Paths.get(mendingDirData.sourceReportPath()).getFileName().toString()),
+                    StandardCopyOption.REPLACE_EXISTING);
         }
     }
 }

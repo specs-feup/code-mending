@@ -15,7 +15,8 @@ public class MendingEngineFatalException extends RuntimeException {
         DIAG_EXPORTER,
         DIAG_EXPORTER_RESULT_DESERIALIZATION,
         MENDING,
-        MENDFILE_WRITER;
+        MENDFILE_WRITER,
+        SOURCE_RESULT_WRITER; // TODO maybe this shouldnt be fatal
 
         @JsonValue
         public String getAsString() {
