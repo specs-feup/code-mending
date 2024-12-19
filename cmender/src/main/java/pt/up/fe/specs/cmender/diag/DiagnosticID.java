@@ -30,11 +30,11 @@ public enum DiagnosticID {
     // When a variable is declared with an incomplete type, that is a type that is not fully defined (e.g., 'struct S')
     ERR_TYPECHECK_DECL_INCOMPLETE_TYPE(4609),
 
-    // TODO
     ERR_TYPECHECK_ILLEGAL_INCREMENT_DECREMENT(4617),
 
     // When a value has a type that is not a pointer but is being dereferenced
-    ERR_TYPECHECK_INDIRECTION_REQUIRES_POINTER(4624),
+    // TODO
+    //ERR_TYPECHECK_INDIRECTION_REQUIRES_POINTER(4624),
 
     // When in a expression a
     ERR_TYPECHECK_INVALID_OPERANDS(4628),

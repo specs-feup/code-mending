@@ -22,6 +22,7 @@ import pt.up.fe.specs.cmender.lang.type.BuiltinType;
 import pt.up.fe.specs.cmender.lang.type.EnumType;
 import pt.up.fe.specs.cmender.lang.type.PointerType;
 import pt.up.fe.specs.cmender.lang.type.QualType;
+import pt.up.fe.specs.cmender.lang.type.QualTypeGenerator;
 import pt.up.fe.specs.cmender.lang.type.Qualifiers;
 import pt.up.fe.specs.cmender.lang.type.RecordType;
 import pt.up.fe.specs.cmender.lang.type.TypeKind;
@@ -201,7 +202,8 @@ public interface MendingHandler {
             var typedefSymbol = mendingTable.typedefs().get(toBeChangedQualType.typeName().get().typeName());
 
             typedefSymbol.setAliasedType(sourceOfTruthQualType);
-            typedefSymbol.setPermittedTypes(Set.of());
+            typedefSymbol.setLocked();
+            //typedefSymbol.setPermittedTypes(Set.of());
 
         } else { // neither is source of truth. are also both controlled typedef aliases
             System.out.println("Both sides are controlled typedef aliases (neither is source of truth)");
@@ -211,7 +213,22 @@ public interface MendingHandler {
             var lhsTypedefSymbol = mendingTable.typedefs().get(lhsTypename.typeName());
             var rhsTypedefSymbol = mendingTable.typedefs().get(rhsTypename.typeName());
 
-            if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
+            if (lhsTypedefSymbol.isLocked() && rhsTypedefSymbol.isLocked()) {
+
+            } else if (!lhsTypedefSymbol.isLocked() ^ !rhsTypedefSymbol.isLocked()) {
+                var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.isLocked() ? lhsTypedefSymbol : rhsTypedefSymbol;
+                var toBeChangedTypedefSymbol = lhsTypedefSymbol.isLocked() ? rhsTypedefSymbol : lhsTypedefSymbol;
+
+                toBeChangedTypedefSymbol.setAliasedType(sourceOfTruthTypedefSymbol.typedefType().aliasedType());
+                toBeChangedTypedefSymbol.setLocked();
+            } else { // both can change aliased type
+                lhsTypedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+                lhsTypedefSymbol.setLocked();
+
+                rhsTypedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+                rhsTypedefSymbol.setLocked();
+            }
+            /*if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
                 // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
                 CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
                 throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type");
@@ -238,7 +255,7 @@ public interface MendingHandler {
 
                 lhsTypedefSymbol.setAliasedType(sourceOfTruthTypedefSymbol.typedefType().aliasedType());
                 lhsTypedefSymbol.setPermittedTypes(commonPermittedTypes);
-            }
+            }*/
         }
 
 
@@ -300,18 +317,16 @@ public interface MendingHandler {
             throw new RuntimeException("Both sides are source of truth. Cant do anything");
         } else if (lhsIsSourceOfTruth ^ rhsIsSourceOfTruth) {
             System.out.println("One side is source of truth");
-
-            handleInvalidOperandsWithOneSideSourceOfTruth(lhsQualType, rhsQualType, lhsIsSourceOfTruth, op, mendingTable);
+            handleInvalidOperandsWithOneSideHighSourceOfTruth(lhsQualType, rhsQualType, lhsIsSourceOfTruth, op, mendingTable);
         } else { // neither is source of truth. are also both controlled typedef aliases
             System.out.println("Both sides are controlled typedef aliases (neither is source of truth)");
-
-            handleInvalidOperandsWithNoSideSourceOfTruth(lhsQualType, rhsQualType, lhsTypeName.get(), rhsTypeName.get(), op, mendingTable);
+            handleInvalidOperandsWithNoSideHighSourceOfTruth(lhsQualType, rhsQualType, lhsTypeName.get(), rhsTypeName.get(), op, mendingTable);
         }
 
         // TODO for now assume that it's only number operands, and not _Bool operands
     }
 
-    private void handleInvalidOperandsWithOneSideSourceOfTruth(
+    private void handleInvalidOperandsWithOneSideHighSourceOfTruth(
             QualType lhsQualType,
             QualType rhsQualType,
             boolean lhsIsSourceOfTruth,
@@ -322,103 +337,25 @@ public interface MendingHandler {
         // Because all types from missing declarations will be typedef'd, we can change the aliased type of the typedef
         assert toBeChangedQualType.typeName().isPresent() && toBeChangedQualType.typeName().get().isTypedefAlias();
 
+        // NOTE this replenishes the permitted types of the other type
 
         var typedefSymbol = mendingTable.typedefs().get(toBeChangedQualType.typeName().get().typeName());
 
         if (sourceOfTruthQualType.type().isPointerType() || sourceOfTruthQualType.type().isArrayType()) {
-            // cases where pointer arithmetic valid:
-            //     ptr1 - ptr2;
-            //     ptr - intVal
-            //     ptr + intVal
-            //     ptr - intVal
-            //     ptr1 == ptr2 or any op
-            //     ptr == intVal or any op
-
-            if (Operations.isComparison(op)) {
-                // pointers and arrays can be compared with pointers and arrays.
-                // comparison can also be done with integral and enum types,
-                //   this however is not a usual operation. as such we will create a pointer.
-
-                typedefSymbol.setAliasedType(new QualType(
-                        "int *",
-                        "int *",
-                        "int *diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new PointerType(new QualType(
-                                "int",
-                                "int",
-                                "int diag_exporter_id",
-                                Qualifiers.unqualified(),
-                                new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                                null)),
-                        null));
-
-                typedefSymbol.setPermittedTypes(Set.of(TypeKind.BUILTIN, TypeKind.ENUM)); // TODO maybe we need to restrict to integral and not builtin
-            } else if (Operations.isBinarySum(op)) {
-                // pointers and arrays can only be added with integral types and enums
-
-                typedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-
-                typedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM));
-            } else if (Operations.isBinarySub(op) && !lhsIsSourceOfTruth) {
-                // pointers and arrays can be subtracted from pointers and arrays.
-                // integral types and enums can also be subtracted from pointers and arrays
-                //   this however is not a usual operation. as such we will create a pointer.
-
-                typedefSymbol.setAliasedType(new QualType(
-                        "int *",
-                        "int *",
-                        "int *diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new PointerType(new QualType(
-                                "int",
-                                "int",
-                                "int diag_exporter_id",
-                                Qualifiers.unqualified(),
-                                new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                                null)),
-                        null));
-
-                typedefSymbol.setPermittedTypes(Set.of(TypeKind.BUILTIN, TypeKind.ENUM)); // TODO maybe we need to restrict to integral and not builtin
-            } else {
-                CliReporting.error("Pointer arithmetic operation not supported. Something went wrong");
-                throw new RuntimeException("Pointer arithmetic operation not supported. Something went wrong");
-            }
-
+            handlePointerSourceOfTruthInInvalidOperands(op, typedefSymbol, lhsIsSourceOfTruth);
+            typedefSymbol.setLocked();
         } else if (sourceOfTruthQualType.type().isBuiltinType() || sourceOfTruthQualType.type().isEnumType()) {
-            if (!typedefSymbol.canChangeAliasedType()) {
-                // TODO will this ever happen? maybe only when there are no sources of truth
-                // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
-                return;
-            }
+            // TODO check if we need to add a runtime exception in case the typedefsymbol is locked and cannot change aliased type due permitted type
+            typedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
 
-            if (typedefSymbol.typedefType().aliasedType().type().isRecordType()) {
-                typedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-
-                typedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
-            }
-
-            // if non-source of truth is pointer or array, we dont do anything, wont even reach here (doesn't raise error)
-
+            typedefSymbol.setLocked();
         } else { // source of truth is not a pointer, array or number or enum (i.e., is a struct or union)
             CliReporting.error("Source of truth is not a pointer, array or number or enum and is used in an invalid operation");
             throw new RuntimeException("Source of truth is not a pointer, array or number or enum and is used in an invalid operation");
         }
     }
 
-    private void handleInvalidOperandsWithNoSideSourceOfTruth(
+    private void handleInvalidOperandsWithNoSideHighSourceOfTruth(
             QualType lhsQualType,
             QualType rhsQualType,
             TypeName lhsTypeName,
@@ -428,115 +365,125 @@ public interface MendingHandler {
         var lhsTypedefSymbol = mendingTable.typedefs().get(lhsTypeName.typeName());
         var rhsTypedefSymbol = mendingTable.typedefs().get(rhsTypeName.typeName());
 
-        if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
+        if (lhsTypedefSymbol.isLocked() && rhsTypedefSymbol.isLocked()) {
+        //if (!lhsTypedefSymbol.canChangeAliasedType() && !rhsTypedefSymbol.canChangeAliasedType()) {
             // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
             CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
             throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type");
-        } else if (lhsTypedefSymbol.canChangeAliasedType() ^ rhsTypedefSymbol.canChangeAliasedType()) {
-            var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? lhsTypedefSymbol : rhsTypedefSymbol;
-            var toBeChangedTypedefSymbol = lhsTypedefSymbol.canChangeAliasedType() ? rhsTypedefSymbol : lhsTypedefSymbol;
+        } else if (!lhsTypedefSymbol.isLocked() ^ !rhsTypedefSymbol.isLocked()) {
+        //} else if (lhsTypedefSymbol.canChangeAliasedType() ^ rhsTypedefSymbol.canChangeAliasedType()) {
+            // cases where pointer arithmetic (binary) is valid:
+            //     ptr + intVal
+            //     ptr1 - ptr2;
+            //     ptr - intVal
+            //     ptr1 == ptr2 or any other comparison op
+            //     ptr == intVal or any other comparison op
+            //     ptr += intVal but this will not appear as error because ptr is source of truth and we assume the rhs is a number (for it to be correct)
+
+            var lhsIsSourceOfTruth = lhsTypedefSymbol.isLocked();
+
+            var sourceOfTruthTypedefSymbol = lhsIsSourceOfTruth ? lhsTypedefSymbol : rhsTypedefSymbol;
+            var toBeChangedTypedefSymbol = lhsIsSourceOfTruth ? rhsTypedefSymbol : lhsTypedefSymbol;
 
             if (sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isPointerType() ||
                     sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isArrayType()) {
-                // Because you can only add pointers and arrays to integral types
-                toBeChangedTypedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-
-                // Because you can only add pointers and arrays to integral types
-                toBeChangedTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM));
+                handlePointerSourceOfTruthInInvalidOperands(op, toBeChangedTypedefSymbol, lhsIsSourceOfTruth);
+                toBeChangedTypedefSymbol.setLocked();
             } else if (sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isBuiltinType() ||
                     sourceOfTruthTypedefSymbol.typedefType().aliasedType().type().isEnumType()) {
-                if (!toBeChangedTypedefSymbol.canChangeAliasedType()) {
-                    // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
-                    return;
-                }
+                // TODO check if we need to add a runtime exception in case the typedefsymbol is locked and cannot change aliased type due permitted type
 
-                if (toBeChangedTypedefSymbol.typedefType().aliasedType().type().isRecordType()) {
-                    toBeChangedTypedefSymbol.setAliasedType(new QualType(
-                            "int",
-                            "int",
-                            "int diag_exporter_id",
-                            Qualifiers.unqualified(),
-                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                            null));
+                toBeChangedTypedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+                toBeChangedTypedefSymbol.setLocked();
 
-                    toBeChangedTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
-                }
-
-                // if is pointer or array, we dont do anything
             } else { // source of truth is not a pointer, array or number or enum (i.e., is a struct or union)
                 CliReporting.error("Source of truth is not a pointer, array or number or enum and is used in an invalid operation (binary operation)");
                 throw new RuntimeException("Source of truth is not a pointer, array or number or enum and is used in an invalid operation (binary operation)");
             }
         } else { // both can change aliased type
 
-            // Because you can only add pointers and arrays to integral types and enums
-            lhsTypedefSymbol.permittedTypes().remove(TypeKind.RECORD);
-            rhsTypedefSymbol.permittedTypes().remove(TypeKind.RECORD);
+            lhsTypedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+            lhsTypedefSymbol.setLocked();
 
-            var lhsIsRecord = lhsTypedefSymbol.typedefType().aliasedType().type().isRecordType();
-            var rhsIsRecord = rhsTypedefSymbol.typedefType().aliasedType().type().isRecordType();
-
-            var lhsHasPermittedPointerOrArray = lhsTypedefSymbol.permittedTypes().contains(TypeKind.POINTER) ||
-                    lhsTypedefSymbol.permittedTypes().contains(TypeKind.ARRAY);
-
-            var rhsHasPermittedPointerOrArray = rhsTypedefSymbol.permittedTypes().contains(TypeKind.POINTER) ||
-                    rhsTypedefSymbol.permittedTypes().contains(TypeKind.ARRAY);
-
-            var lhsHasPermittedBuiltInOrEnum = lhsTypedefSymbol.permittedTypes().contains(TypeKind.BUILTIN) ||
-                    lhsTypedefSymbol.permittedTypes().contains(TypeKind.ENUM);
-
-            var rhsHasPermittedBuiltInOrEnum = rhsTypedefSymbol.permittedTypes().contains(TypeKind.BUILTIN) ||
-                    rhsTypedefSymbol.permittedTypes().contains(TypeKind.ENUM);
-
-            if (lhsIsRecord) {
-                lhsTypedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-
-                lhsTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
-            }
-
-            if (rhsIsRecord) {
-                rhsTypedefSymbol.setAliasedType(new QualType(
-                        "int",
-                        "int",
-                        "int diag_exporter_id",
-                        Qualifiers.unqualified(),
-                        new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
-                        null));
-
-                rhsTypedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM, TypeKind.POINTER, TypeKind.ARRAY));
-            }
+            rhsTypedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+            rhsTypedefSymbol.setLocked();
 
 
-                /*if (lhsHasPointerOrArray && rhsHasBuiltInOrEnum) {
-
-                }*/
-
-            var commonPermittedTypes = new HashSet<>(lhsTypedefSymbol.permittedTypes());
-            commonPermittedTypes.retainAll(rhsTypedefSymbol.permittedTypes());
-
+            /*// Because you can only add pointers and arrays to integral types and enums
 
             if (commonPermittedTypes.isEmpty()) {
                 // TODO might need to skip this diagnostic to the next one because we are changing the aliased type
                 CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
                 throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type to a common type");
-            }
+            }*/
 
 
         }
     }
 
+    private void handlePointerSourceOfTruthInInvalidOperands(String op, TypedefSymbol typedefSymbol, boolean lhsIsSourceOfTruth) {
+        // cases where pointer arithmetic (binary) is valid:
+        //     ptr + intVal
+        //     ptr1 - ptr2;
+        //     ptr - intVal
+        //     ptr1 == ptr2 or any other comparison op
+        //     ptr == intVal or any other comparison op
+        //     ptr += intVal but this will not appear as error because ptr is source of truth and we assume the rhs is a number (for it to be correct)
+
+        if (Operations.isComparison(op)) {
+            // pointers and arrays can be compared with pointers and arrays.
+            // comparison can also be done with integral and enum types,
+            //     this however is not a usual operation (might only be valid in 0 comparison).
+            //     as such we will create a pointer.
+            // intVal == ptrTruth or any other comparison op,
+            // ptr == ptrTruth or any other comparison op,
+
+            typedefSymbol.setAliasedType(new QualType(
+                    "int *",
+                    "int *",
+                    "int *diag_exporter_id",
+                    Qualifiers.unqualified(),
+                    new PointerType(new QualType(
+                            "int",
+                            "int",
+                            "int diag_exporter_id",
+                            Qualifiers.unqualified(),
+                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                            null)),
+                    null));
+            //typedefSymbol.setPermittedTypes(Set.of(TypeKind.BUILTIN, TypeKind.ENUM)); // TODO maybe we need to restrict to integral and not builtin
+        } else if (Operations.isBinarySum(op)) {
+            // pointers and arrays can only be added with integral types and enums
+            // intVal + ptrTruth
+
+            typedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+
+            //typedefSymbol.setPermittedTypes(Set.of(TypeKind.ENUM));
+        } else if (Operations.isBinarySub(op) && !lhsIsSourceOfTruth) {
+            // pointers and arrays can be subtracted from pointers and arrays.
+            // integral types and enums can also be subtracted from pointers and arrays
+            //   this however is not a usual operation. as such we will create a pointer.
+
+            typedefSymbol.setAliasedType(new QualType(
+                    "int *",
+                    "int *",
+                    "int *diag_exporter_id",
+                    Qualifiers.unqualified(),
+                    new PointerType(new QualType(
+                            "int",
+                            "int",
+                            "int diag_exporter_id",
+                            Qualifiers.unqualified(),
+                            new BuiltinType(BuiltinType.BuiltinKind.INT, "int"),
+                            null)),
+                    null));
+
+            //typedefSymbol.setPermittedTypes(Set.of(TypeKind.BUILTIN, TypeKind.ENUM)); // TODO maybe we need to restrict to integral and not builtin
+        } else {
+            CliReporting.error("Pointer arithmetic operation not supported. Something went wrong");
+            throw new RuntimeException("Pointer arithmetic operation not supported. Something went wrong");
+        }
+    }
 
     default void createHeaderFileHeuristic(Diagnostic diag, MendingTable mendingTable, MendingDirData mendingDirData) {
         System.out.println("[createHeaderFileHeuristic]");
@@ -697,17 +644,17 @@ public interface MendingHandler {
                 TypeKind.RECORD, TypeKind.ENUM, TypeKind.TYPEDEF, TypeKind.FUNCTION), mendingTable);
     }*/
 
-    default void adjustMemberReferenceHeuristic(Diagnostic dig, MendingTable mendingTable) {
+    default void adjustMemberReferenceHeuristic(Diagnostic diag, MendingTable mendingTable) {
         System.out.println("[adjustMemberReferenceHeuristic]");
 
-        if (!DiagnosticArgsMatcher.match(dig.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
             CliReporting.error("Could not match diagnostic args for adjustMemberReferenceHeuristic");
             Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustMemberReferenceHeuristic");
             throw new RuntimeException("Could not match diagnostic args for adjustMemberReferenceHeuristic");
         }
 
-        var qualType = ((QualTypeArg) dig.description().args().getFirst()).qualType();
-        var shouldBePointer = ((SIntArg) dig.description().args().get(1)).integer() == 1;
+        var qualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+        var shouldBePointer = ((SIntArg) diag.description().args().get(1)).integer() == 1;
 
         System.out.println("Type: " + qualType.typeAsString() + " (" + qualType.canonicalTypeAsString() + ")");
         var typeName = qualType.typeName();
@@ -724,7 +671,8 @@ public interface MendingHandler {
                     new PointerType(typedefSymbol.typedefType().aliasedType()),
                     null));
 
-            typedefSymbol.setPermittedTypes(Set.of());
+            typedefSymbol.setLocked();
+            //typedefSymbol.setPermittedTypes(Set.of());
         }
     }
 
@@ -858,6 +806,24 @@ public interface MendingHandler {
                 throw new RuntimeException("Could not find variable name in subscript value");
             }
         }
+    }
+
+    default void adjustIncrementDecrementHeuristic(Diagnostic diag, MendingTable mendingTable) {
+        // we dont lock because it might be a pointer and not an integer but we assume it is an integer for now
+
+        System.out.println("[adjustIncrementDecrementHeuristic]");
+
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class, SIntArg.class))) {
+            CliReporting.error("Could not match diagnostic args for adjustIncrementDecrementHeuristic");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustIncrementDecrementHeuristic");
+            throw new RuntimeException("Could not match diagnostic args for adjustIncrementDecrementHeuristic");
+        }
+
+        var qualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+
+        var typedefSymbol = mendingTable.typedefs().get(qualType.typeAsString());
+
+        typedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
     }
 
     default void convertSubscriptToIntegerHeuristic(Diagnostic diag, MendingTable mendingTable) {

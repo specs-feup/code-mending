@@ -20,6 +20,8 @@ public class TypedefSymbol extends Symbol {
 
     private final Set<TypeKind> permittedTypes;
 
+    private boolean isLocked;
+
     public TypedefSymbol(String name, TypedefType typedefType, Set<TypeKind> permittedTypes) {
         super(name);
         this.typedefType = typedefType;
@@ -38,6 +40,7 @@ public class TypedefSymbol extends Symbol {
                 TypeKind.TYPEDEF,
                 TypeKind.FUNCTION
         ));
+        isLocked = true;
     }
 
     public void setAliasedType(QualType qualType) {
@@ -47,6 +50,14 @@ public class TypedefSymbol extends Symbol {
     public void setPermittedTypes(Set<TypeKind> permittedTypes) {
         this.permittedTypes.clear();
         this.permittedTypes.addAll(permittedTypes);
+    }
+
+    public void setLocked() {
+        isLocked = true;
+    }
+
+    public void setUnlocked() {
+        isLocked = false;
     }
 
     public boolean canChangeAliasedType() {
