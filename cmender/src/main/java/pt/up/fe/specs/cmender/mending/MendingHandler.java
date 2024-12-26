@@ -501,8 +501,10 @@ public interface MendingHandler {
 
             var stdStringArg = (StdStringArg) diag.description().args().getFirst();
 
-            var headerFilePath = Paths.get(includePath, stdStringArg.string());
-
+            //var headerFilePath = Paths.get(includePath, stdStringArg.string());
+            // TODO think how should we export header files when the path starts with "../" (falls outside the project directory)
+            var headerFilePath = Paths.get(includePath, stdStringArg.string()).toFile().getCanonicalFile().toPath();
+            System.out.println(headerFilePath);
             Files.createDirectories(headerFilePath.getParent());
 
             Files.createFile(headerFilePath);
