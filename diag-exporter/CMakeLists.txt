@@ -54,7 +54,8 @@ set(SOURCE_FILES
         src/main.cpp
         src/DiagnosticExporterAction.cpp
         src/JsonDiagnosticConsumer.cpp
-        src/QualTypeJsonConverter.cpp)
+        src/QualTypeJsonConverter.cpp
+        src/SourceBatchThreadAllocator.cpp)
 
 add_executable(diag-exporter ${SOURCE_FILES})
 
