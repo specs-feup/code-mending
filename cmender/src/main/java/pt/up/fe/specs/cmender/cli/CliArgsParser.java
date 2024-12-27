@@ -38,7 +38,7 @@ public class CliArgsParser {
     private static final String OUTPUT_SHORT = "o";
     private static final String OUTPUT_LONG = "output";
 
-    private static final String OUTPUT_DIAGS_SHORT = "do";
+    private static final String OUTPUT_DIAGS_SHORT = "od";
     private static final String OUTPUT_DIAGS_LONG = "output-diags";
 
     private static final String DIAGS_OUTPUT_FILENAME_SHORT = "dof";
