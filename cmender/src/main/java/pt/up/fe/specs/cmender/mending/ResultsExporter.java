@@ -30,7 +30,6 @@ public class ResultsExporter {
     // - [optional] JSON (or Yaml) file with the structured results from the diag-exporter process for each source file (e.g., the diagnostics for each source file)
     //           - [optional] copy for each iteration
 
-
     public static void exportResults(CMenderInvocation invocation, List<MendingDirData> mendingDirDatas, CMenderReport report) {
         // TODO this code is really bad and messy. It should be refactored
         var outputPath = Paths.get(invocation.getOutput());
@@ -42,15 +41,13 @@ public class ResultsExporter {
             System.out.println(mendingDirDatas);
             Files.createDirectories(outputPath);
 
-            // TODO should we assume that the user will input the filename without the extension? or allow him to input the extension?
-            var reportFilename = invocation.getReportFilename().endsWith(".json") ? invocation.getReportFilename() : invocation.getReportFilename() + ".json";
-            var reportFilePath = outputPath.resolve(reportFilename);
+            var reportFilePath = outputPath.resolve(invocation.getReportFilename());
 
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File(reportFilePath.toString()), report);
 
             for (var mendingDirData : mendingDirDatas) {
-                // NOTE we dont copy the temp dir straight to the output dir because of the invocation options
-                //      that configure the output
+                // TODO maybe we could copy the temp dir straight to the output dir. so far there are no options here
+                //    that configure the output such that it
                 exportMendingDir(outputPath, mendingDirData, invocation);
             }
         } catch (IOException e) {
@@ -66,6 +63,7 @@ public class ResultsExporter {
             System.out.println("mendingDirData is null for " + outputPath);
             return;
         }
+
         // TODO validate filename. the source file name should not have any special characters
         //    because it will be used as a directory name
         var mendingDirName = Paths.get(mendingDirData.sourceFilePath()).getFileName().toString() +
@@ -79,7 +77,7 @@ public class ResultsExporter {
                 StandardCopyOption.REPLACE_EXISTING);
 
         // export mendfile copies
-        if (invocation.isCreateMendfileCopyPerIteration()) {
+        if (invocation.isCreateMendfileCopyPerIteration()) { // TODO if probably not needed because we might just want to move the temp directory
             var mendfileCopies = Files.createDirectories(Paths.get(mendingOutputPath.toString(), "mendfileCopies"));
             FileUtils.copyDirectory(new File(mendingDirData.mendfileCopiesDirPath()), new File(mendfileCopies.toString()));
         }
@@ -89,13 +87,13 @@ public class ResultsExporter {
         FileUtils.copyDirectory(new File(mendingDirData.includePath()), new File(includes.toString()));
 
         // export diag results
-        if (invocation.isOutputDiagsOutput()) {
+        if (invocation.isOutputDiagsOutput()) { // TODO if probably not needed because we might just want to move the temp directory
             var diagResults = Files.createDirectories(Paths.get(mendingOutputPath.toString(), "diagsOutputs"));
             FileUtils.copyDirectory(new File(mendingDirData.diagsDirPath()), new File(diagResults.toString()));
         }
 
         // export source report (if it exists)
-        if (invocation.isReportPerSource()) {
+        if (invocation.isReportPerSource()) { // TODO if probably not needed because we might just want to move the temp directory
             Files.copy(
                     Paths.get(mendingDirData.sourceReportPath()),
                     Paths.get(mendingOutputPath.toString(), Paths.get(mendingDirData.sourceReportPath()).getFileName().toString()),

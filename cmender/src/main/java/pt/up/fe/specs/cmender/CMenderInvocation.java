@@ -58,11 +58,17 @@ public class CMenderInvocation {
     @Builder.Default
     private boolean outputDiagsOutput = false;
 
+    @Builder.Default     // because "mending" is the process, not the result. "mends" is the result
+    private String mendfileFilename = "cmender_mends.h"; // TODO
+
     @Builder.Default
     private String diagsOutputFilename = "cmender_diags_output.json"; // TODO
 
     @Builder.Default
     private String reportFilename = "cmender_report.json"; // TODO
+
+    @Builder.Default
+    private String sourceReportFilename = "source_report.json"; // TODO
 
     // TODO: Add support for mending in place (i.e., declarations on the source file)
     /*@Builder.Default

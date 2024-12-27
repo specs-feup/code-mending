@@ -50,11 +50,6 @@ public class MendingEngine {
              * It contains the necessary mends to fix the errors found by the DiagExporter tool.
              */""";
 
-    // because "mending" is the process, not the result. "mends" is the result
-    private static final String MENDFILE_NAME = "cmender_mends";
-
-    private static final String MENDFILE_FILENAME = MENDFILE_NAME + ".h";
-
     private final DiagExporter diagExporter;
 
     private final CMenderInvocation menderInvocation;
@@ -221,7 +216,8 @@ public class MendingEngine {
     }
 
     private MendBundle mend(String sourceFile) {
-        var mendingDirData = CMenderDataManager.createMendingDir(sourceFile, MENDING_DISCLAIMER_IN_SOURCE, MENDFILE_NAME, menderInvocation.getDiagsOutputFilename());
+        var mendingDirData = CMenderDataManager.createMendingDir(sourceFile, MENDING_DISCLAIMER_IN_SOURCE,
+                menderInvocation.getMendfileFilename(), menderInvocation.getDiagsOutputFilename(), menderInvocation.getSourceReportFilename());
         System.out.println(mendingDirData);
 
         if (mendingDirData == null) {
@@ -439,9 +435,7 @@ public class MendingEngine {
 
                 // copy the diags output file for each iteration
                 if (menderInvocation.isCreateDiagsOutputCopyPerIteration()) {
-                    var filenameNoExt = menderInvocation.getDiagsOutputFilename().endsWith(".json") ?
-                            menderInvocation.getDiagsOutputFilename().substring(0, menderInvocation.getDiagsOutputFilename().length() - 5) :
-                            menderInvocation.getDiagsOutputFilename();
+                    var filenameNoExt = removeExtension(menderInvocation.getDiagsOutputFilename());
                     var copyPath = Paths.get(mendingDirData.diagsDirPath(), filenameNoExt + "_" + iteration + ".json").toFile();
                     Files.copy(Paths.get(mendingDirData.diagsFilePath()), copyPath.toPath());
                 }
@@ -470,7 +464,8 @@ public class MendingEngine {
     private long writeMendfile(MendingTable table, MendingDirData mendingDirData, long currentIteration) {
         return TimeMeasure.measureElapsed(() -> {
             try {
-                var mendfile = Paths.get(mendingDirData.includePath(), MENDFILE_FILENAME).toFile();
+                //var mendfile = Paths.get(mendingDirData.includePath(), MENDFILE_FILENAME).toFile();
+                var mendfile = Paths.get(mendingDirData.mendfilePath()).toFile();
 
                 var writer = new BufferedWriter(new FileWriter(mendfile));
 
@@ -479,7 +474,8 @@ public class MendingEngine {
                 table.writeSymbolDecls(writer);
 
                 if (menderInvocation.isCreateMendfileCopyPerIteration()) {
-                    var mendfileCopyPath = Paths.get(mendingDirData.mendfileCopiesDirPath(), MENDFILE_NAME + "_" + currentIteration + ".h").toFile();
+                    var mendfileNameNoExt = removeExtension(menderInvocation.getMendfileFilename());
+                    var mendfileCopyPath = Paths.get(mendingDirData.mendfileCopiesDirPath(), mendfileNameNoExt + "_" + currentIteration + ".h").toFile();
 
                     Files.copy(mendfile.toPath(), mendfileCopyPath.toPath());
 
@@ -489,8 +485,10 @@ public class MendingEngine {
             } catch (IOException e) {
                 // TODO differentiaite between file writing errors and file copying errors
                 Logging.FILE_LOGGER.error(e.getMessage(), e);
-                CliReporting.error("could not write mendfile: '%s'", MENDFILE_FILENAME);
-                throw new MendingEngineFatalException(MendingEngineFatalException.FatalType.MENDFILE_WRITER, String.format("could not write mendfile: '%s'", MENDFILE_FILENAME), currentIteration, e);
+                CliReporting.error("could not write mendfile or copy: '%s'", mendingDirData.mendfilePath());
+                throw new MendingEngineFatalException(
+                        MendingEngineFatalException.FatalType.MENDFILE_WRITER,
+                            String.format("could not write mendfile or copy: '%s'", mendingDirData.mendfilePath()), currentIteration, e);
             }
         });
     }
@@ -549,5 +547,10 @@ public class MendingEngine {
         }
 
         return existingValidFiles;
+    }
+
+    private static String removeExtension(String filename) {
+        int lastDot = filename.lastIndexOf('.');
+        return lastDot == -1 ? filename : filename.substring(0, lastDot);
     }
 }

@@ -79,7 +79,8 @@ public class CMenderDataManager {
         return System.getProperty("data.dir", defaultDataPath);
     }
 
-    public static MendingDirData createMendingDir(String sourceFilePathStr, String mendingDisclaimerInSource, String mendfileName, String diagsOutputFilename) {
+    public static MendingDirData createMendingDir(String sourceFilePathStr, String mendingDisclaimerInSource,
+                                                  String mendfileName, String diagsOutputFilename, String sourceReportFilename) {
         UUID id = UUID.randomUUID();
         Path sourceFilePath = Paths.get(sourceFilePathStr);
         Path mendingDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString());
@@ -105,7 +106,7 @@ public class CMenderDataManager {
             BufferedReader reader = new BufferedReader(new FileReader(sourceFilePath.toFile()));
             writer.write(mendingDisclaimerInSource);
             writer.newLine();
-            writer.write("#include \"" + mendfileName + ".h\"");
+            writer.write("#include \"" + mendfileName + "\"");
             writer.newLine();
             writer.newLine();
 
@@ -119,7 +120,7 @@ public class CMenderDataManager {
             reader.close();
 
             // Create the (empty) header file before any diag-exporter calls (to avoid missing header file error)
-            var headerFilePath = includeDirPath.resolve(mendfileName + ".h");
+            var headerFilePath = includeDirPath.resolve(mendfileName);
             writer = new BufferedWriter(new FileWriter(headerFilePath.toFile()));
             writer.flush();
             writer.close();
@@ -136,7 +137,7 @@ public class CMenderDataManager {
                     .includePath(includeDirPath.toFile().getCanonicalPath()) // TODO improve
                     .diagsDirPath(diagsDirPath.toFile().getCanonicalPath()) // TODO improve
                     .mendfileCopiesDirPath(mendfileCopiesDirPath.toFile().getCanonicalPath()) // TODO improve
-                    .sourceReportPath(Paths.get(mendingDirPath.toString(), "source_report.json").toFile().getCanonicalPath()) // TODO improve
+                    .sourceReportPath(Paths.get(mendingDirPath.toString(), sourceReportFilename).toFile().getCanonicalPath()) // TODO improve
                     .build();
             //return sourceFileCopyPath.toFile().getCanonicalPath();
         } catch (IOException e) {
