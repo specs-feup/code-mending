@@ -96,6 +96,8 @@ public class MendingEngine {
 
         boolean singleThreaded = menderInvocation.getThreads() == 1;
 
+        // todo add warning if files == 1 and threads > 1
+
         if (singleThreaded) {
             CliReporting.info("running in single-thread mode");
 
@@ -168,6 +170,18 @@ public class MendingEngine {
             }
         }
 
+        // Useful for when the mending dir could not have been produced
+
+        var nullMendingDirs = new ArrayList<String>();
+
+        for (int i = 0; i < files.size(); i++) {
+            var file = files.get(i);
+            var mendingDirData = mendingDirDatas[i];
+
+            if (mendingDirData == null) {
+                nullMendingDirs.add(file);
+            }
+        }
 
         /*if (sourceResults.size() != files.size()) {
             CliReporting.warning("not all files were processed, exiting");
@@ -209,6 +223,7 @@ public class MendingEngine {
 
                 .unknownDiagsFrequency(unknownDiagsFrequency)
                 .uniqueUnknownDiagsCount(unknownDiagsFrequency.size())
+                .nullMendingDirs(nullMendingDirs)
                 .sourceResults(sourceResultsList)
                 .build();
 
@@ -221,6 +236,7 @@ public class MendingEngine {
         System.out.println(mendingDirData);
 
         if (mendingDirData == null) {
+            CliReporting.error("could not create mending dir for file: '%s'", sourceFile);
             //continue;
 
             return new MendBundle(SourceResult.builder()
@@ -310,9 +326,9 @@ public class MendingEngine {
 
         return new MendBundle(result.toBuilder()
                 .sourceFile(sourceFile)
-                .completionStatusEstimate(result.success() ? 1.0 : result.mendingIterations().getLast().terminationStatus().fileProgress())
-                .mendfileSize(result.mendingIterations().getLast().mendfileSize())
-                .totalTime(TimeBundle.fromNanos(totalTime))
+                .completionStatusEstimate(result.success() ? 1.0 : // if there is an error in the first invocation, we don't have a completion status nor a mendfile size
+                        (result.mendingIterations().isEmpty() ? 0.0 : result.mendingIterations().getLast().terminationStatus().fileProgress()))
+                .mendfileSize(result.mendingIterations().isEmpty()? SizeBundle.fromBytes(0) : result.mendingIterations().getLast().mendfileSize())                .totalTime(TimeBundle.fromNanos(totalTime))
                 .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime, totalTime))
                 .otherTotalTime(TimeBundle.fromNanos(totalTime - diagExporterTotalTime, totalTime))
                 .build(), mendingDirData);

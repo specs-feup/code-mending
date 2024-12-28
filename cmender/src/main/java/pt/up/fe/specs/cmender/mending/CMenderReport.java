@@ -28,5 +28,8 @@ public record CMenderReport(
 
         Map<String, Integer> unknownDiagsFrequency,
         long uniqueUnknownDiagsCount,
+
+        List<String> nullMendingDirs,
+
         List<SourceResult> sourceResults
 ) { }

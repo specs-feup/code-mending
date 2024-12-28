@@ -55,6 +55,9 @@ public class Launcher {
 
         // delete the mending directory
         for (var mendingDirData : mendingDirDatas) {
+            if (mendingDirData == null) {
+                continue;
+            }
             try {
                 FileUtils.deleteDirectory(new File(mendingDirData.dirPath()));
             } catch (IOException e) {
