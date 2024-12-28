@@ -29,14 +29,16 @@ public record BuiltinType(
         FLOAT,
         DOUBLE,
         LONG_DOUBLE,
-        _BOOL;
+        _BOOL,
+        DEPENDENT, // not used. this is needed because Clang is giving bogus C++ diagnostics
+        OVERLOAD; // not used. this is needed because Clang is giving bogus C++ diagnostics
 
         @JsonCreator
         public static BuiltinKind toBuiltinKind(String kind) {
             return switch (kind) {
                 case "Void" -> VOID;
                 case "Char_U", "UChar" -> UCHAR;
-                case "Char_S", "Char" -> CHAR;
+                case "Char_S", "Char", "SChar" -> CHAR;
                 case "UShort" -> USHORT;
                 case "Short"-> SHORT;
                 case "UInt" -> UINT;
@@ -49,6 +51,8 @@ public record BuiltinType(
                 case "Double" -> DOUBLE;
                 case "LongDouble" -> LONG_DOUBLE;
                 case "Bool" -> _BOOL;
+                case "Dependent" -> DEPENDENT;
+                case "Overload" -> OVERLOAD;
                 default -> throw new IllegalArgumentException("Not supported builtin type: " + kind);
             };
         }
@@ -75,14 +79,18 @@ public record BuiltinType(
     }
 
     @Override
-    public boolean isIntegralType() { // missing all the others
+    public boolean isIntegralType() {
         return builtinKind == BuiltinKind.CHAR || builtinKind == BuiltinKind.SHORT
-                || builtinKind == BuiltinKind.INT || builtinKind == BuiltinKind.LONG;
+                || builtinKind == BuiltinKind.INT || builtinKind == BuiltinKind.LONG ||
+                builtinKind == BuiltinKind.LONG_LONG || builtinKind == BuiltinKind.UCHAR ||
+                builtinKind == BuiltinKind.USHORT || builtinKind == BuiltinKind.UINT ||
+                builtinKind == BuiltinKind.ULONG || builtinKind == BuiltinKind.ULONGLONG;
     }
 
     @Override
-    public boolean isFloatingPointType() { // missing all the others
-        return builtinKind == BuiltinKind.FLOAT || builtinKind == BuiltinKind.DOUBLE;
+    public boolean isFloatingPointType() {
+        return builtinKind == BuiltinKind.FLOAT || builtinKind == BuiltinKind.DOUBLE
+                || builtinKind == BuiltinKind.LONG_DOUBLE;
     }
 
     @Override
