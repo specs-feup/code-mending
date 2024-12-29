@@ -33,6 +33,12 @@ public class CMenderInvocation {
     @Builder.Default
     private Integer maxTotalIterations = 1000;
 
+    @Builder.Default
+    private String analysis = "BasicFirstErrorAnalysis";
+
+    @Builder.Default
+    private String handler = "BasicSequentialMendingHandler";
+
     // If this is set, we create mendfile copies and export them in the output directory
     // Another option for 'exportMendfileCopyPerIteration' needless here
     @Builder.Default

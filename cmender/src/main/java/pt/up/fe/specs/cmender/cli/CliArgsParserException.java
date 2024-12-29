@@ -27,6 +27,14 @@ public class CliArgsParserException extends Exception {
         return new CliArgsParserException("no input files specified");
     }
 
+    public static CliArgsParserException ofInvalidAnalysisType(String analysisType) {
+        return new CliArgsParserException(String.format("invalid analysis type: '%s'", analysisType));
+    }
+
+    public static CliArgsParserException ofInvalidHandlerType(String handlerType) {
+        return new CliArgsParserException(String.format("invalid handler type: '%s'", handlerType));
+    }
+
     private static String adaptMessage(ParseException e) {
         if (e instanceof UnrecognizedOptionException unrecognizedOptionException) {
             return String.format("unknown option: '%s'", unrecognizedOptionException.getOption());

@@ -1,6 +1,7 @@
-package pt.up.fe.specs.cmender.mending;
+package pt.up.fe.specs.cmender.mending.analysis;
 
 import pt.up.fe.specs.cmender.diag.DiagExporterSourceResult;
+import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.List;
 

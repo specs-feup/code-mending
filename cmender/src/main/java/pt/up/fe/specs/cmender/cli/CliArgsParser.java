@@ -9,6 +9,8 @@ import org.apache.commons.cli.ParseException;
 
 import pt.up.fe.specs.cmender.CMenderInvocation;
 import pt.up.fe.specs.cmender.logging.Logging;
+import pt.up.fe.specs.cmender.mending.analysis.AnalysisFactory;
+import pt.up.fe.specs.cmender.mending.handler.HandlerFactory;
 
 import java.util.List;
 
@@ -20,6 +22,12 @@ public class CliArgsParser {
 
     private static final String DIAG_EXPORTER_SHORT = "dex";
     private static final String DIAG_EXPORTER_LONG = "diag-exporter";
+
+    private static final String ANALYSIS_SHORT = "a";
+    private static final String ANALYSIS_LONG = "analysis";
+
+    private static final String HANDLER_SHORT = "ha";
+    private static final String HANDLER_LONG = "handler";
 
     private static final String MENDFILE_COPY_PER_ITERATION_SHORT = "mendfile-cpi";
     private static final String MENDFILE_COPY_PER_ITERATION_LONG = "mendfile-copy-per-iteration";
@@ -73,6 +81,22 @@ public class CliArgsParser {
                 .longOpt(DIAG_EXPORTER_LONG)
                 .desc("Path for diag-exporter executable")
                 .argName("path")
+                .hasArg()
+                .optionalArg(true)
+                .type(String.class)
+                .build())
+            .addOption(Option.builder(ANALYSIS_SHORT)
+                .longOpt(ANALYSIS_LONG)
+                .desc("Analysis class to use (" + String.join(", ", AnalysisFactory.ANALYSIS_TYPES) + ")")
+                .argName("analysis")
+                .hasArg()
+                .optionalArg(true)
+                .type(String.class)
+                .build())
+            .addOption(Option.builder(HANDLER_SHORT)
+                .longOpt(HANDLER_LONG)
+                .desc("Handler to use (" + String.join(", ", HandlerFactory.HANDLER_TYPES) + ")")
+                .argName("handler")
                 .hasArg()
                 .optionalArg(true)
                 .type(String.class)
@@ -180,6 +204,22 @@ public class CliArgsParser {
                     Logging.FILE_LOGGER.warn("Source report filename specified but report per source not enabled");
                     CliReporting.warning("Source report filename specified but report per source not enabled");
                 }
+
+                if (cmd.hasOption(ANALYSIS_SHORT)) {
+                    var analysis = cmd.getOptionValue(ANALYSIS_SHORT);
+
+                    if (!AnalysisFactory.isValidAnalysisType(analysis)) {
+                        throw CliArgsParserException.ofInvalidAnalysisType(analysis);
+                    }
+                }
+
+                if (cmd.hasOption(HANDLER_SHORT)) {
+                    var handler = cmd.getOptionValue(HANDLER_SHORT);
+
+                    if (!HandlerFactory.isValidHandlerType(handler)) {
+                        throw CliArgsParserException.ofInvalidHandlerType(handler);
+                    }
+                }
             }
 
             // todo check why one - also works for the long options
@@ -191,6 +231,8 @@ public class CliArgsParser {
                     .verbose(cmd.hasOption(VERBOSE_SHORT))
                     .threads(Integer.parseInt(cmd.getOptionValue(THREADS_SHORT, "1")))
                     .diagExporterPath(cmd.getOptionValue(DIAG_EXPORTER_SHORT))
+                    .analysis(cmd.getOptionValue(ANALYSIS_SHORT, "BasicFirstErrorAnalysis"))
+                    .handler(cmd.getOptionValue(HANDLER_SHORT, "BasicSequentialMendingHandler"))
 
                     // Flags to control the creation of copies and reports
                     .createMendfileCopyPerIteration(cmd.hasOption(MENDFILE_COPY_PER_ITERATION_SHORT))

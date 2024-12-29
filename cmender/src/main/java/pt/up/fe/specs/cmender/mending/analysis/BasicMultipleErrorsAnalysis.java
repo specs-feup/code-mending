@@ -1,4 +1,4 @@
-package pt.up.fe.specs.cmender.mending;
+package pt.up.fe.specs.cmender.mending.analysis;
 
 import pt.up.fe.specs.cmender.diag.DiagExporterSourceResult;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
@@ -9,14 +9,15 @@ import pt.up.fe.specs.cmender.diag.args.IdentifierArg;
 import pt.up.fe.specs.cmender.diag.args.QualTypeArg;
 import pt.up.fe.specs.cmender.lang.type.EnumType;
 import pt.up.fe.specs.cmender.lang.type.RecordType;
+import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.List;
 import java.util.Set;
 
-public class BasicMultipleErrorAnalysis implements DiagnosticAnalysis {
+public class BasicMultipleErrorsAnalysis implements DiagnosticAnalysis {
     private final BasicFirstErrorAnalysis basicFirstErrorAnalysis;
 
-    public BasicMultipleErrorAnalysis() {
+    public BasicMultipleErrorsAnalysis() {
         basicFirstErrorAnalysis = new BasicFirstErrorAnalysis();
     }
 

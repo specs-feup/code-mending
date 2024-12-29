@@ -1,4 +1,4 @@
-package pt.up.fe.specs.cmender.mending;
+package pt.up.fe.specs.cmender.mending.handler;
 
 import pt.up.fe.specs.cmender.cli.CliReporting;
 import pt.up.fe.specs.cmender.data.MendingDirData;
@@ -29,6 +29,9 @@ import pt.up.fe.specs.cmender.lang.type.TypeKind;
 import pt.up.fe.specs.cmender.lang.type.TypeName;
 import pt.up.fe.specs.cmender.lang.type.TypedefType;
 import pt.up.fe.specs.cmender.logging.Logging;
+import pt.up.fe.specs.cmender.mending.DiagnosticMendResult;
+import pt.up.fe.specs.cmender.mending.MendingTable;
+import pt.up.fe.specs.cmender.mending.MendingTypeNameGenerator;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;

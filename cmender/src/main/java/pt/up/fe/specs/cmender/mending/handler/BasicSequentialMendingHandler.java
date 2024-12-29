@@ -1,8 +1,10 @@
-package pt.up.fe.specs.cmender.mending;
+package pt.up.fe.specs.cmender.mending.handler;
 
 import pt.up.fe.specs.cmender.data.MendingDirData;
 import pt.up.fe.specs.cmender.diag.Diagnostic;
 import pt.up.fe.specs.cmender.diag.DiagnosticID;
+import pt.up.fe.specs.cmender.mending.DiagnosticMendResult;
+import pt.up.fe.specs.cmender.mending.MendingTable;
 
 import java.util.List;
 

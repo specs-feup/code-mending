@@ -1,7 +1,9 @@
-package pt.up.fe.specs.cmender.mending;
+package pt.up.fe.specs.cmender.mending.analysis;
 
 import pt.up.fe.specs.cmender.diag.DiagExporterSourceResult;
 import pt.up.fe.specs.cmender.diag.DiagnosticID;
+import pt.up.fe.specs.cmender.mending.MendingTable;
+import pt.up.fe.specs.cmender.mending.MendingTerminationStatus;
 
 import java.util.List;
 
