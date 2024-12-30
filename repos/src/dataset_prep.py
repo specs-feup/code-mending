@@ -145,7 +145,8 @@ if __name__ == "__main__":
             
                 try:
                     result = subprocess.run(
-                        ["clang", "-fsyntax-only", output_filepath],
+                        #["clang", "-fsyntax-only", output_filepath],
+                        ["clang", "-fsyntax-only", "-nostdinc", "-isysroot", "\"\"", output_filepath],
                         stdout=subprocess.PIPE,  # Suppress stdout
                         stderr=subprocess.PIPE   # Suppress stderr
                     )
