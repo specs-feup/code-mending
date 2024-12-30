@@ -69,6 +69,10 @@ public class DiagExporterInvocation {
         args.add(lang.getClangInvocationSpelling());
         args.add("-std=" + standard.getClangInvocationSpelling());
         args.add("-ferror-limit=" + errorLimit);
+        // TODO add some feature to include target to user specified libs or just libc/libc++
+        args.add("-nostdinc"); // disable standard include paths
+        args.add("-isysroot"); // disable system root
+        args.add("");
 
         for (String includePath : includePaths) {
             args.add("-I"+includePath);
@@ -93,7 +97,7 @@ public class DiagExporterInvocation {
         }
 
         stringBuilder.append(
-                "-o %s -m %s -- -x %s -std=%s -ferror-limit=%d".formatted(
+                "-o %s -m %s -- -x %s -std=%s -ferror-limit=%d -nostdinc -isysroot \"\"".formatted(
                         outputFilepath,
                         severityMappingFilepath,
                         lang.getClangInvocationSpelling(),
