@@ -104,8 +104,12 @@ public class CMenderDataManager {
 
             // We dont copy the file because we need to add the disclaimer and the include directive
             BufferedReader reader = new BufferedReader(new FileReader(sourceFilePath.toFile()));
-            writer.write(mendingDisclaimerInSource);
-            writer.newLine();
+
+            if (mendingDisclaimerInSource != null) {
+                writer.write(mendingDisclaimerInSource);
+                writer.newLine();
+            }
+
             writer.write("#include \"" + mendfileName + "\"");
             writer.newLine();
             writer.newLine();

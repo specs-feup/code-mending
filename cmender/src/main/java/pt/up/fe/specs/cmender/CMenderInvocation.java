@@ -39,6 +39,9 @@ public class CMenderInvocation {
     @Builder.Default
     private String handler = "BasicSequentialMendingHandler";
 
+    @Builder.Default
+    private boolean noDisclaimer = false;
+
     // If this is set, we create mendfile copies and export them in the output directory
     // Another option for 'exportMendfileCopyPerIteration' needless here
     @Builder.Default

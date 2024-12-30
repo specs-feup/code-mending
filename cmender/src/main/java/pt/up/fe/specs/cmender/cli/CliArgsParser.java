@@ -29,6 +29,9 @@ public class CliArgsParser {
     private static final String HANDLER_SHORT = "ha";
     private static final String HANDLER_LONG = "handler";
 
+    private static final String DISCLAIMER_DISALLOWED_SHORT = "no-disclaimer";
+    private static final String DISCLAIMER_DISALLOWED_LONG = "no-disclaimer";
+
     private static final String MENDFILE_COPY_PER_ITERATION_SHORT = "mendfile-cpi";
     private static final String MENDFILE_COPY_PER_ITERATION_LONG = "mendfile-copy-per-iteration";
 
@@ -100,6 +103,10 @@ public class CliArgsParser {
                 .hasArg()
                 .optionalArg(true)
                 .type(String.class)
+                .build())
+            .addOption(Option.builder(DISCLAIMER_DISALLOWED_SHORT)
+                .longOpt(DISCLAIMER_DISALLOWED_LONG)
+                .desc("Disallow disclaimer")
                 .build())
             .addOption(Option.builder(MENDFILE_COPY_PER_ITERATION_SHORT)
                 .longOpt(MENDFILE_COPY_PER_ITERATION_LONG)
@@ -233,6 +240,7 @@ public class CliArgsParser {
                     .diagExporterPath(cmd.getOptionValue(DIAG_EXPORTER_SHORT))
                     .analysis(cmd.getOptionValue(ANALYSIS_SHORT, "BasicFirstErrorAnalysis"))
                     .handler(cmd.getOptionValue(HANDLER_SHORT, "BasicSequentialMendingHandler"))
+                    .noDisclaimer(cmd.hasOption(DISCLAIMER_DISALLOWED_SHORT))
 
                     // Flags to control the creation of copies and reports
                     .createMendfileCopyPerIteration(cmd.hasOption(MENDFILE_COPY_PER_ITERATION_SHORT))
