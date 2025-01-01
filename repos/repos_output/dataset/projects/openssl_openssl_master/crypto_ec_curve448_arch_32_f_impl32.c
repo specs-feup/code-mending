@@ -19,7 +19,7 @@
 NON_EMPTY_TRANSLATION_UNIT
 #else
 
-# include "../field.h"
+# include "./field.h"
 
 void ossl_gf_mul(gf_s * RESTRICT cs, const gf as, const gf bs)
 {

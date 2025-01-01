@@ -15,7 +15,7 @@
 #include "ssltestlib.h"
 #include "testutil.h"
 #if defined(OPENSSL_THREADS) && !defined(CRYPTO_TDEBUG)
-# include "../threadstest.h"
+# include "./threadstest.h"
 #endif
 #include "internal/quic_ssl.h"
 #include "internal/quic_wire_pkt.h"

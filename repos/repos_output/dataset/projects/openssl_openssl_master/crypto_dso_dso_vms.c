@@ -19,7 +19,7 @@
 # include <stsdef.h>
 # include <descrip.h>
 # include <starlet.h>
-# include "../vms_rms.h"
+# include "./vms_rms.h"
 
 /* Some compiler options may mask the declaration of "_malloc32". */
 # define DSO_MALLOC OPENSSL_malloc

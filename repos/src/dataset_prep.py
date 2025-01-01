@@ -23,7 +23,7 @@ def get_c_files(path, max_files=None):
     return list(c_files)
 
 def convert_include_path(include_line):
-    pattern = r'(#include\s+[<"])(.*?)([">])'
+    pattern = r'(# ?include\s+[<"])(.*?)([">])'
 
     def remove_parent_directories(match):
         path = match.group(2)
