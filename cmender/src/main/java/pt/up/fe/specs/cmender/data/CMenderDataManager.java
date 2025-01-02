@@ -15,6 +15,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 // TODO should the mendfile be created in the mending directory or in the include directory?
@@ -49,7 +50,7 @@ public class CMenderDataManager {
         // copy the default severity mapping file to the mending directory
 
         try {
-            Files.copy(CMenderDataManager.class.getClassLoader().getResourceAsStream("diag_severity_mapping.json"),
+            Files.copy(Objects.requireNonNull(CMenderDataManager.class.getClassLoader().getResourceAsStream("diag_severity_mapping.json")),
                     Paths.get(DIAGNOSTIC_SEVERITY_MAPPING_FILEPATH), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             CliReporting.error("failed to copy default severity mapping file: %s", e.getMessage());
