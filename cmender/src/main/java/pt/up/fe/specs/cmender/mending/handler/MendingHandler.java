@@ -507,7 +507,17 @@ public interface MendingHandler {
             //var headerFilePath = Paths.get(includePath, stdStringArg.string());
             // TODO think how should we export header files when the path starts with "../" (falls outside the project directory)
             var headerFilePath = Paths.get(includePath, stdStringArg.string()).toFile().getCanonicalFile().toPath();
-            System.out.println(headerFilePath);
+
+            System.out.println("path " + headerFilePath);
+
+            // NOTE it is generally legal to include the same header file multiple times in the same translation unit
+            //     but it can be dangerous if the header file has macros or other declarations that can be redefined
+            // As such for BasicMultipleErrorsAnalysis where all diags are selected at the same time this is needed
+            if (mendingTable.ppFileExists(headerFilePath.toString())) {
+                return;
+            }
+
+            mendingTable.addPPFile(headerFilePath.toString());
             Files.createDirectories(headerFilePath.getParent());
 
             Files.createFile(headerFilePath);
@@ -516,9 +526,6 @@ public interface MendingHandler {
             Logging.FILE_LOGGER.error("Failed to handle missing pp file: {}", e.getMessage());
             throw new RuntimeException("Failed to handle missing pp file: " + e.getMessage());
         }
-
-        // TODO we can try to find the file in the include paths and add it to the mending table
-
     }
 
     default void defineTagTypeHeuristic(Diagnostic diag, MendingTable mendingTable) {

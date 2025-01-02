@@ -50,6 +50,8 @@ public class MendingTable {
 
     private final List<DiagnosticShortInfo> unknownDiags;
 
+    private final Set<String> ppFiles;
+
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
@@ -60,6 +62,7 @@ public class MendingTable {
         arraySubscriptToCorrespondingSymbol = new HashMap<>();
         handledDiagnostics = new ArrayList<>();
         unknownDiags = new ArrayList<>();
+        ppFiles = new HashSet<>();
     }
 
     public void setFileSize(long fileSize) {
@@ -224,6 +227,14 @@ public class MendingTable {
 
     public boolean isUncontrolledTypedefAlias(TypeName typeName) {
         return typeName.isTypedefAlias() && !typedefs.containsKey(typeName.identifier());
+    }
+
+    public boolean ppFileExists(String ppFile) {
+        return ppFiles.contains(ppFile);
+    }
+
+    public void addPPFile(String ppFile) {
+        ppFiles.add(ppFile);
     }
 
     // TODO we will also require symbols here which are already declared in the code
