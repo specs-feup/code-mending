@@ -29,6 +29,9 @@ public class CliArgsParser {
     private static final String HANDLER_SHORT = "ha";
     private static final String HANDLER_LONG = "handler";
 
+    private static final String MAX_TIME_SHORT = "mt";
+    private static final String MAX_TIME_LONG = "max-time";
+
     private static final String DISCLAIMER_DISALLOWED_SHORT = "no-disclaimer";
     private static final String DISCLAIMER_DISALLOWED_LONG = "no-disclaimer";
 
@@ -103,6 +106,14 @@ public class CliArgsParser {
                 .hasArg()
                 .optionalArg(true)
                 .type(String.class)
+                .build())
+            .addOption(Option.builder(MAX_TIME_SHORT)
+                .longOpt(MAX_TIME_LONG)
+                .desc("Maximum time to run in minutes")
+                .argName("minutes")
+                .hasArg()
+                .optionalArg(true)
+                .type(Integer.class)
                 .build())
             .addOption(Option.builder(DISCLAIMER_DISALLOWED_SHORT)
                 .longOpt(DISCLAIMER_DISALLOWED_LONG)
@@ -238,6 +249,7 @@ public class CliArgsParser {
                     .verbose(cmd.hasOption(VERBOSE_SHORT))
                     .threads(Integer.parseInt(cmd.getOptionValue(THREADS_SHORT, "1")))
                     .diagExporterPath(cmd.getOptionValue(DIAG_EXPORTER_SHORT))
+                    .maxTotalTime(Integer.parseInt(cmd.getOptionValue(MAX_TIME_SHORT, "10")))
                     .analysis(cmd.getOptionValue(ANALYSIS_SHORT, "BasicFirstErrorAnalysis"))
                     .handler(cmd.getOptionValue(HANDLER_SHORT, "BasicSequentialMendingHandler"))
                     .noDisclaimer(cmd.hasOption(DISCLAIMER_DISALLOWED_SHORT))

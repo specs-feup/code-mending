@@ -34,6 +34,9 @@ public class CMenderInvocation {
     private Integer maxTotalIterations = 1000;
 
     @Builder.Default
+    private Integer maxTotalTime = 10; // minutes
+
+    @Builder.Default
     private String analysis = "BasicFirstErrorAnalysis";
 
     @Builder.Default

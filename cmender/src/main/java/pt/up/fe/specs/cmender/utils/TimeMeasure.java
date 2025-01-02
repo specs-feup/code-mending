@@ -30,6 +30,10 @@ public class TimeMeasure {
         return nanoseconds / 1_000_000_000.0;
     }
 
+    public static double minutes(long nanoseconds) {
+        return seconds(nanoseconds) / 60.0;
+    }
+
     public static double ratio(long totalTime, long time) {
         return (double) time / totalTime;
     }

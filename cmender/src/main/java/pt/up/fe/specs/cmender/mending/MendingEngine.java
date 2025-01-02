@@ -284,7 +284,21 @@ public class MendingEngine {
 
             List<MendingIterationResult> iterationResults = new ArrayList<>();
 
-            while (!finished && currentIteration++ < maxTotalIterations && !detectedLoop) {
+            long timeStart = System.nanoTime();
+
+            var timeout = false;
+
+            //while (!finished && currentIteration++ < maxTotalIterations && !detectedLoop) {
+            while (!finished && !detectedLoop) {
+                if (TimeMeasure.minutes(System.nanoTime() - timeStart) > menderInvocation.getMaxTotalTime()) {
+                    CliReporting.warning("maximum total time exceeded, exiting");
+                    Logging.FILE_LOGGER.warn("maximum total time exceeded, exiting");
+                    timeout = true;
+                    break;
+                }
+
+                currentIteration++;
+
                 MendingIterationResult mendingIterationResult = null;
                 try {
                     mendingIterationResult = mendingIteration(mendingDirData, currentIteration, mendingTable);
@@ -292,6 +306,7 @@ public class MendingEngine {
 
                     return SourceResult.builder()
                             .success(false)
+                            .timeout(timeout)
                             .fileSize(SizeBundle.fromBytes(mendingTable.fileSize()))
                             .fatalException(e)
                             .iterationCount(currentIteration)
@@ -318,6 +333,7 @@ public class MendingEngine {
 
             return SourceResult.builder()
                     .success(success)
+                    .timeout(timeout)
                     .fileSize(SizeBundle.fromBytes(mendingTable.fileSize()))
                     .iterationCount(currentIteration)
                     .diagExporterTotalTime(TimeBundle.fromNanos(diagExporterTotalTime))

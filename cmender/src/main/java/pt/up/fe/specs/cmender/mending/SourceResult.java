@@ -14,6 +14,8 @@ public record SourceResult(
 
         boolean success,
 
+        boolean timeout,
+
         MendingEngineFatalException fatalException,
 
         long iterationCount,
