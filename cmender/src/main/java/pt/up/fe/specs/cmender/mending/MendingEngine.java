@@ -80,7 +80,7 @@ public class MendingEngine {
     }
 
     public MendingEngineBundle execute() {
-        var files = getExistingValidFiles(getAbsolutePaths(getFiles()));
+        var files = getExistingValidFiles(getAbsolutePaths(menderInvocation.getFiles()));
 
         if (files.isEmpty()) {
             CliReporting.warning("no valid input files provided, exiting");
@@ -114,7 +114,7 @@ public class MendingEngine {
 
             for (int i = 0; i < files.size(); i++) {
                 var file = files.get(i);
-                System.out.println(file);
+                System.out.println("File: " + file);
 
                 var bundle = mend(file);
 
@@ -144,7 +144,7 @@ public class MendingEngine {
 
             for (int i = 0; i < files.size(); i++) {
                 var file = files.get(i);
-                System.out.println(file);
+                System.out.println("File: " + file);
                 int finalI = i;
 
                 executorService.submit(() -> {
@@ -242,11 +242,13 @@ public class MendingEngine {
     }
 
     private MendBundle mend(String sourceFile) {
+        System.out.println("MEND");
         var mendingDirData = CMenderDataManager.createMendingDir(sourceFile, menderInvocation.isNoDisclaimer()? null : MENDING_DISCLAIMER_IN_SOURCE,
                 menderInvocation.getMendfileFilename(), menderInvocation.getDiagsOutputFilename(), menderInvocation.getSourceReportFilename());
-        System.out.println(mendingDirData);
+        System.out.println(mendingDirData + " " + sourceFile);
 
         if (mendingDirData == null) {
+            System.out.println("mendingDirData is null out of creatyion");
             CliReporting.error("could not create mending dir for file: '%s'", sourceFile);
             //continue;
 
@@ -290,6 +292,7 @@ public class MendingEngine {
 
             //while (!finished && currentIteration++ < maxTotalIterations && !detectedLoop) {
             while (!finished && !detectedLoop) {
+                System.out.println("ITERATION " + currentIteration);
                 if (TimeMeasure.minutes(System.nanoTime() - timeStart) > menderInvocation.getMaxTotalTime()) {
                     CliReporting.warning("maximum total time exceeded, exiting");
                     Logging.FILE_LOGGER.warn("maximum total time exceeded, exiting");
@@ -550,7 +553,7 @@ public class MendingEngine {
         });
     }
 
-    /*private List<String> getAbsolutePaths(List<String> files) {
+    private List<String> getAbsolutePaths(List<String> files) {
         var absolutePaths = new HashSet<String>();
 
         for (var file : files) {
@@ -563,7 +566,7 @@ public class MendingEngine {
         }
 
         return new ArrayList<>(absolutePaths);
-    }*/
+    }
 
     private List<String> getAbsolutePaths(Set<Path> files) {
         var absolutePaths = new ArrayList<String>();
@@ -590,8 +593,20 @@ public class MendingEngine {
                 CliReporting.error("file does not exist: '%s'", file);
                 Logging.FILE_LOGGER.error("file does not exist: '{}'", file);
             } else if (!file.isFile()) {
-                CliReporting.error("not a file: '%s'", file);
-                Logging.FILE_LOGGER.error("not a file: '{}'", file);
+
+                // get all files from directory
+                File[] files = file.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile()) {
+                            existingValidFiles.add(f.getAbsolutePath());
+                        }
+                    }
+                }
+
+                // TODO improve
+                //CliReporting.error("not a file: '%s'", file);
+                //Logging.FILE_LOGGER.error("not a file: '{}'", file);
             } else if (!file.canRead()) {
                 CliReporting.error("cannot read file: '%s'", file);
                 Logging.FILE_LOGGER.error("cannot read file: '{}'", file);
@@ -613,7 +628,7 @@ public class MendingEngine {
         return lastDot == -1 ? filename : filename.substring(0, lastDot);
     }
 
-    private Set<Path> getFiles() {
+    private Set<Path> getFilesFromGlobs() {
         List<String> globs = menderInvocation.getFiles();
         Set<Path> files = new LinkedHashSet<>();
 
@@ -631,6 +646,7 @@ public class MendingEngine {
     }
 
     private static List<Path> getFilesGlob(String glob) throws IOException {
+        // TODO fix this. for now only works for absolute paths
         System.out.println("Glob pattern: " + glob);
 
         // Extract the base directory from the glob

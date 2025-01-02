@@ -81,6 +81,7 @@ public class CMenderDataManager {
 
     public static MendingDirData createMendingDir(String sourceFilePathStr, String mendingDisclaimerInSource,
                                                   String mendfileName, String diagsOutputFilename, String sourceReportFilename) {
+        System.out.println("here 1");
         UUID id = UUID.randomUUID();
         Path sourceFilePath = Paths.get(sourceFilePathStr);
         Path mendingDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString());
@@ -88,6 +89,7 @@ public class CMenderDataManager {
         Path diagsDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "diagsOutputs");
         Path mendfileCopiesDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "mendfileCopies");
 
+        System.out.println("here: " + mendingDirPath.toString());
         try {
             // TODO think of garbage collection of old mending directories (maybe temporary directories?)
             //  also maybe customisation to this behaviour (e.g., keep the last N directories)
@@ -145,11 +147,13 @@ public class CMenderDataManager {
                     .build();
             //return sourceFileCopyPath.toFile().getCanonicalPath();
         } catch (IOException e) {
+            System.out.println("EXCEPTION: " + e.getMessage());
             // TODO this exception in the future should be handled by the caller because we will be handling
             //  multiple files at once and we should not stop the process if one file fails to be copied.
             //  We just save the error message and continue with the other files.
             CliReporting.error("failed to create mending directory: '%s'", e.getMessage());
             Logging.FILE_LOGGER.error("failed to create mending directory: '{}'", e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
