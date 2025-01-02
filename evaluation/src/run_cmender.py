@@ -9,25 +9,30 @@ VM_OPTIONS = "-Dlog.level=debug -Dlog.dir=/tmp/cmender/logs -Ddata.dir=/tmp/cmen
 def run_cmender_on_files(cmender_path, diag_exporter_path, files, output_dirpath, threads=12, analysis="BasicMultiplePPErrorsAnalysis"):
         #print("Running cmender on all files")
 
-        all_file_paths = " ".join(files)
+        #all_file_paths = " ".join(files)
+
+        #print(all_file_paths)
 
         # save in file for debugging
-        with open("all_file_paths.txt", "w") as f:
-            f.write(all_file_paths)
+        #with open("all_file_paths.txt", "w") as f:
+        #    f.write(all_file_paths)
 
-        #print("All file paths: ", all_file_paths)
+        all_file_paths = files
 
-        command = f"java {VM_OPTIONS} -jar {cmender_path} -dex {diag_exporter_path} -mendfile-cpi -diags-cpi -od {all_file_paths} -o {output_dirpath} -t {threads} -rps -a {analysis}"
+
+        command = f"java {VM_OPTIONS} -jar {cmender_path} -dex {diag_exporter_path} -mendfile-cpi -diags-cpi -rps -od -no-disclaimer -o {output_dirpath} -t {threads} -mt 15 -a {analysis} {all_file_paths}"
 
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        print(result.stdout)
 
 if __name__ == '__main__':    
     if len(sys.argv) != 7:
         print("Usage: python evaluation.py <dataset_dir> <cmender_output_dir> <cmender_path> <diag_exporter_path> <threads> <analysis>")
         sys.exit(1)
 
-    dataset_dirpath = sys.argv[1]
-    cmender_output_dirpath = sys.argv[2]
+    dataset_dirpath = os.path.abspath(sys.argv[1])
+    cmender_output_dirpath = os.path.abspath(sys.argv[2])
     cmender_path = sys.argv[3]
     diag_exporter_path = sys.argv[4]
     threads = sys.argv[5]
@@ -50,6 +55,17 @@ if __name__ == '__main__':
     os.makedirs(cmender_output_dirpath, exist_ok=True)
 
     for dataset_project in dataset_projects_info:
+
+        print("Processing project: ", dataset_project["name"], " branch: ", dataset_project["branch"])
+
+        project_cmender_output_dirpath = os.path.join(cmender_output_dirpath, dataset_project["name"].replace("/", "_"))
+
+        glob = os.path.join(dataset_projects_dirpath, dataset_project["name"].replace("/", "_") + "_" + dataset_project["branch"]) + "/*.c"
+        
+        print("Glob: ", glob)
+        run_cmender_on_files(cmender_path, diag_exporter_path, glob, project_cmender_output_dirpath, threads, analysis)
+    '''
+    for dataset_project in dataset_projects_info:
         project_files = []
 
         print("Processing project: ", dataset_project["name"], " branch: ", dataset_project["branch"])
@@ -61,3 +77,4 @@ if __name__ == '__main__':
         project_cmender_output_dirpath = os.path.join(cmender_output_dirpath, dataset_project["name"].replace("/", "_"))
 
         run_cmender_on_files(cmender_path, diag_exporter_path, project_files, project_cmender_output_dirpath, threads, analysis)
+    '''
