@@ -25,19 +25,26 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 public class MendingEngine {
     private static final String MENDING_DISCLAIMER_IN_SOURCE = """
@@ -73,12 +80,12 @@ public class MendingEngine {
     }
 
     public MendingEngineBundle execute() {
-        var files = getExistingValidFiles(getAbsolutePaths(menderInvocation.getFiles()));
+        var files = getExistingValidFiles(getAbsolutePaths(getFiles()));
 
         if (files.isEmpty()) {
             CliReporting.warning("no valid input files provided, exiting");
             Logging.FILE_LOGGER.warn("no valid input files provided, exiting");
-            return null;
+            return null; // TODO maybe throw an exception
         }
 
         // TODO currently we have one diag-exporter invocation per file
@@ -527,7 +534,7 @@ public class MendingEngine {
         });
     }
 
-    private List<String> getAbsolutePaths(List<String> files) {
+    /*private List<String> getAbsolutePaths(List<String> files) {
         var absolutePaths = new HashSet<String>();
 
         for (var file : files) {
@@ -540,6 +547,21 @@ public class MendingEngine {
         }
 
         return new ArrayList<>(absolutePaths);
+    }*/
+
+    private List<String> getAbsolutePaths(Set<Path> files) {
+        var absolutePaths = new ArrayList<String>();
+
+        for (var file : files) {
+            try {
+                absolutePaths.add(file.toAbsolutePath().toString());
+            } catch (InvalidPathException e) {
+                CliReporting.error("invalid input file path: '%s'", file);
+                Logging.FILE_LOGGER.error("invalid input file path: '{}'", file);
+            }
+        }
+
+        return absolutePaths;
     }
 
     private List<String> getExistingValidFiles(List<String> paths) {
@@ -573,5 +595,50 @@ public class MendingEngine {
     private static String removeExtension(String filename) {
         int lastDot = filename.lastIndexOf('.');
         return lastDot == -1 ? filename : filename.substring(0, lastDot);
+    }
+
+    private Set<Path> getFiles() {
+        List<String> globs = menderInvocation.getFiles();
+        Set<Path> files = new LinkedHashSet<>();
+
+        for (String glob : globs) {
+            try {
+                files.addAll(getFilesGlob(glob));
+            } catch (Exception e) {
+                CliReporting.error("error while collecting files from glob: '%s'", glob);
+                Logging.FILE_LOGGER.error("error while collecting files from glob: '{}'", glob);
+            }
+        }
+
+        System.out.println("Number of files: " + files.size());
+        return files;
+    }
+
+    private static List<Path> getFilesGlob(String glob) throws IOException {
+        System.out.println("Glob pattern: " + glob);
+
+        // Extract the base directory from the glob
+        int firstWildcardIndex = glob.indexOf('*');
+        String baseDir = firstWildcardIndex != -1 ? glob.substring(0, firstWildcardIndex) : glob;
+        Path basePath = Paths.get(baseDir).normalize();
+
+        if (!Files.exists(basePath)) {
+            throw new IOException("Base path does not exist: " + basePath);
+        }
+
+        // Create a matcher for the glob pattern
+        FileSystem fs = FileSystems.getDefault();
+        PathMatcher matcher = fs.getPathMatcher("glob:" + glob);
+
+        // Collect files that match the pattern
+        List<Path> files = new ArrayList<>();
+        try (Stream<Path> paths = Files.walk(basePath)) {
+            paths
+                    .filter(Files::isRegularFile) // Only consider files
+                    .filter(path -> matcher.matches(path.toAbsolutePath())) // Match the glob
+                    .forEach(files::add);
+        }
+
+        return files;
     }
 }
