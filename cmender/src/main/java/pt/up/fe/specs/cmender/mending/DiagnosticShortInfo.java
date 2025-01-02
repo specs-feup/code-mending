@@ -9,7 +9,8 @@ import pt.up.fe.specs.cmender.diag.DiagnosticLevel;
 // This DiagnosticShortInfo model one is supposed to be used for CMender results. For processing we use the Diagnostic class
 @Builder
 public record DiagnosticShortInfo(
-        String id,
+        int id,
+        String labelId,
         DiagnosticLevel level,
         int line,
         int column,
@@ -18,7 +19,8 @@ public record DiagnosticShortInfo(
     // TODO we can also call this 'of' or 'to'
     public static DiagnosticShortInfo from(Diagnostic diag) {
         return DiagnosticShortInfo.builder()
-                .id(diag.labelId())
+                .id(diag.id())
+                .labelId(diag.labelId())
                 .level(diag.level())
                 .line(diag.location().isFileLoc()? diag.location().presumedLoc().line() : diag.location().expansionLoc().line()) // TODO verify if for macro loc we should use expansion loc
                 .column(diag.location().isFileLoc()? diag.location().presumedLoc().column() : diag.location().expansionLoc().column()) // TODO verify if for macro loc we should use expansion loc

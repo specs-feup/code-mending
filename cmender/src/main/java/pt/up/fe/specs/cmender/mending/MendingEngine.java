@@ -300,7 +300,7 @@ public class MendingEngine {
                 finished = success || mendingIterationResult.terminationStatus().finishedPrematurely(menderInvocation);
 
                 for (var unknownDiag : mendingTable.unknownDiags()) {
-                    unknownDiagsFrequency.put(unknownDiag.id(), unknownDiagsFrequency.getOrDefault(unknownDiag.id(), 0) + 1);
+                    unknownDiagsFrequency.put(unknownDiag.labelId(), unknownDiagsFrequency.getOrDefault(unknownDiag.labelId(), 0) + 1);
                     unknownDiags.add(unknownDiag);
                 }
 
