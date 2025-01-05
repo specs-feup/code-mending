@@ -34,7 +34,8 @@ private:
 
     std::string currentReducedFile;
 
-    std::chrono::time_point<std::chrono::steady_clock> start;
+    std::chrono::high_resolution_clock::time_point start;
+    //std::chrono::time_point<std::chrono::steady_clock> start;
 
 public:
     explicit DiagnosticExporterAction(const unsigned fileId, const ordered_json &severityMapping) :

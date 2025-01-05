@@ -217,7 +217,8 @@ public interface MendingHandler {
             var rhsTypedefSymbol = mendingTable.typedefs().get(rhsTypename.typeName());
 
             if (lhsTypedefSymbol.isLocked() && rhsTypedefSymbol.isLocked()) {
-
+                CliReporting.error("Both sides are controlled typedef aliases but none can change the aliased type");
+                throw new RuntimeException("Both sides are controlled typedef aliases but none can change the aliased type");
             } else if (!lhsTypedefSymbol.isLocked() ^ !rhsTypedefSymbol.isLocked()) {
                 var sourceOfTruthTypedefSymbol = lhsTypedefSymbol.isLocked() ? lhsTypedefSymbol : rhsTypedefSymbol;
                 var toBeChangedTypedefSymbol = lhsTypedefSymbol.isLocked() ? rhsTypedefSymbol : lhsTypedefSymbol;
@@ -614,7 +615,7 @@ public interface MendingHandler {
         String typedefName;
         if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) { // err_unknown_typename
             typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
-        } else if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class))) { // err_unknown_typename_suggest
+        } else if (DiagnosticArgsMatcher.match(diag.description().args(), List.of(IdentifierArg.class, StdStringArg.class))) { // err_unknown_typename_suggest
             typedefName = ((IdentifierArg) diag.description().args().getFirst()).name();
         } else {
             CliReporting.error("Could not match diagnostic args for declareTypedefTypeAliasHeuristic");
@@ -860,6 +861,37 @@ public interface MendingHandler {
                         new BuiltinType(BuiltinType.BuiltinKind.UINT, "unsigned int"),
                         null));
 
+    }
+
+    default void adjustIncompleteArgInCall(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[adjustIncompleteArgInCall]");
+
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class))) {
+            CliReporting.error("Could not match diagnostic args for adjustIncompleteArgInCall");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustIncompleteArgInCall");
+            throw new RuntimeException("Could not match diagnostic args for adjustIncompleteArgInCall");
+        }
+
+        var qualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+
+        var typedefSymbol = mendingTable.typedefs().get(qualType.typeAsString());
+
+        if (qualType.type().isBuiltinType() && qualType.type().isVoid()) {
+            var structType = new RecordType(MendingTypeNameGenerator.newTagTypeName(), RecordType.RecordKind.STRUCT);
+            var structSymbol = new RecordSymbol(structType.name());
+
+            mendingTable.put(structSymbol);
+
+            typedefSymbol.setAliasedType(new QualType(
+                    "struct " + structType.name(),
+                    "struct " + structType.name(),
+                    "struct " + structType.name() + " diag_exporter_id",
+                    Qualifiers.unqualified(),
+                    structType,
+                    null));
+        } else {
+            typedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
+        }
     }
 
     default void handleUnknown(Diagnostic diag, MendingTable mendingTable) {

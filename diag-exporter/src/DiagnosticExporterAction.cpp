@@ -2,6 +2,8 @@
 #include <sstream>
 #include <fstream>
 #include <filesystem>
+#include <chrono>
+
 
 #include "DiagnosticExporterAction.h"
 

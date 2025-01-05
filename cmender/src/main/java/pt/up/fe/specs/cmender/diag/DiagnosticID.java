@@ -17,6 +17,8 @@ public enum DiagnosticID {
     // (e.g., #include <nonexistent.h> or #include "nonexistent.h")
     ERR_PP_FILE_NOT_FOUND(975),
 
+    ERR_CALL_INCOMPLETE_ARGUMENT(2881),
+
     // When a function definition has for example 'enum E' or 'struct S' as return type
     //   but the type is not defined in the same translation unit
     ERR_FUNC_DEF_INCOMPLETE_RESULT(3309),
