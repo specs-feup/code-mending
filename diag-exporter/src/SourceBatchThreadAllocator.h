@@ -2,6 +2,7 @@
 #define SOURCEBATCHALLOCATION_H
 
 #include <vector>
+#include <string>
 
 struct SourceFile {
     std::string path;

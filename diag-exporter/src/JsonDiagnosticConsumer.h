@@ -6,6 +6,8 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <nlohmann/json.hpp>
 
+#include <string>
+
 #include "QualTypeJsonConverter.h"
 
 using ordered_json = nlohmann::ordered_json;

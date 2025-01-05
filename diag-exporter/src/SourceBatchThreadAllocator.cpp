@@ -1,6 +1,7 @@
 #include "SourceBatchThreadAllocator.h"
 
 #include <queue>
+#include <algorithm>
 
 unsigned SourceFile::idCounter = 0;
 
