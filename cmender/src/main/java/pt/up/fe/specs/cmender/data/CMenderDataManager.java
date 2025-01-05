@@ -82,7 +82,6 @@ public class CMenderDataManager {
 
     public static MendingDirData createMendingDir(String sourceFilePathStr, String mendingDisclaimerInSource,
                                                   String mendfileName, String diagsOutputFilename, String sourceReportFilename) {
-        System.out.println("here 1");
         UUID id = UUID.randomUUID();
         Path sourceFilePath = Paths.get(sourceFilePathStr);
         Path mendingDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString());
@@ -90,7 +89,6 @@ public class CMenderDataManager {
         Path diagsDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "diagsOutputs");
         Path mendfileCopiesDirPath = Paths.get(BASE_MENDING_DIRPATH, id.toString(), "mendfileCopies");
 
-        System.out.println("here: " + mendingDirPath.toString());
         try {
             // TODO think of garbage collection of old mending directories (maybe temporary directories?)
             //  also maybe customisation to this behaviour (e.g., keep the last N directories)

@@ -37,6 +37,7 @@ public class BasicSequentialMendingHandler implements MendingHandler {
                 case DiagnosticID.ERR_TYPECHECK_SUBSCRIPT_NOT_INTEGER ->       convertSubscriptToIntegerHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_TYPECHECK_ILLEGAL_INCREMENT_DECREMENT -> adjustIncrementDecrementHeuristic(diag, mendingTable);
                 case DiagnosticID.ERR_CALL_INCOMPLETE_ARGUMENT ->              adjustIncompleteArgInCall(diag, mendingTable);
+                case DiagnosticID.ERR_ARRAY_SIZE_NON_INT ->                    adjustArraySizeNonInt(diag, mendingTable);
                 default -> { }
             }
         }

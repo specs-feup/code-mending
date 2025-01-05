@@ -876,6 +876,12 @@ public interface MendingHandler {
 
         var typedefSymbol = mendingTable.typedefs().get(qualType.typeAsString());
 
+        if (typedefSymbol == null) {
+            CliReporting.error("Could not find typedef symbol for incomplete arg in call");
+            Logging.FILE_LOGGER.error("Could not find typedef symbol for incomplete arg in call");
+            throw new RuntimeException("Could not find typedef symbol for incomplete arg in call");
+        }
+
         if (qualType.type().isBuiltinType() && qualType.type().isVoid()) {
             var structType = new RecordType(MendingTypeNameGenerator.newTagTypeName(), RecordType.RecordKind.STRUCT);
             var structSymbol = new RecordSymbol(structType.name());
@@ -892,6 +898,28 @@ public interface MendingHandler {
         } else {
             typedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
         }
+    }
+
+    default void adjustArraySizeNonInt(Diagnostic diag, MendingTable mendingTable) {
+        System.out.println("[adjustArraySizeNonInt]");
+
+        if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(QualTypeArg.class))) {
+            CliReporting.error("Could not match diagnostic args for adjustArraySizeNonInt");
+            Logging.FILE_LOGGER.error("Could not match diagnostic args for adjustArraySizeNonInt");
+            throw new RuntimeException("Could not match diagnostic args for adjustArraySizeNonInt");
+        }
+
+        var qualType = ((QualTypeArg) diag.description().args().getFirst()).qualType();
+
+        var typedefSymbol = mendingTable.typedefs().get(qualType.typeAsString());
+
+        if (typedefSymbol == null) {
+            CliReporting.error("Could not find typedef symbol for array size non-int");
+            Logging.FILE_LOGGER.error("Could not find typedef symbol for array size non-int");
+            throw new RuntimeException("Could not find typedef symbol for array size non-int");
+        }
+
+        typedefSymbol.setAliasedType(QualTypeGenerator.intUnqualifiedType());
     }
 
     default void handleUnknown(Diagnostic diag, MendingTable mendingTable) {

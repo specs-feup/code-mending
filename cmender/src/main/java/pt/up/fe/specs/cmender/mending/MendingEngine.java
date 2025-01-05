@@ -242,13 +242,11 @@ public class MendingEngine {
     }
 
     private MendBundle mend(String sourceFile) {
-        System.out.println("MEND");
         var mendingDirData = CMenderDataManager.createMendingDir(sourceFile, menderInvocation.isNoDisclaimer()? null : MENDING_DISCLAIMER_IN_SOURCE,
                 menderInvocation.getMendfileFilename(), menderInvocation.getDiagsOutputFilename(), menderInvocation.getSourceReportFilename());
         System.out.println(mendingDirData + " " + sourceFile);
 
         if (mendingDirData == null) {
-            System.out.println("mendingDirData is null out of creatyion");
             CliReporting.error("could not create mending dir for file: '%s'", sourceFile);
             //continue;
 
@@ -325,6 +323,7 @@ public class MendingEngine {
                 finished = success || mendingIterationResult.terminationStatus().finishedPrematurely(menderInvocation);
 
                 for (var unknownDiag : mendingTable.unknownDiags()) {
+                    System.out.println("Unknown diag: " + unknownDiag);
                     unknownDiagsFrequency.put(unknownDiag.labelId(), unknownDiagsFrequency.getOrDefault(unknownDiag.labelId(), 0) + 1);
                     unknownDiags.add(unknownDiag);
                 }

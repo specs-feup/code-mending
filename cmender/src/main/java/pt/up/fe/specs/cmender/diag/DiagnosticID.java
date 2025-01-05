@@ -17,6 +17,8 @@ public enum DiagnosticID {
     // (e.g., #include <nonexistent.h> or #include "nonexistent.h")
     ERR_PP_FILE_NOT_FOUND(975),
 
+    ERR_ARRAY_SIZE_NON_INT(2616),
+
     ERR_CALL_INCOMPLETE_ARGUMENT(2881),
 
     // When a function definition has for example 'enum E' or 'struct S' as return type
