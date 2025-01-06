@@ -5,7 +5,6 @@ import subprocess
 
 VM_OPTIONS = "-Dlog.level=debug -Dlog.dir=/tmp/cmender/logs -Ddata.dir=/tmp/cmender/logs/data"
 
-
 def run_cmender_on_files(cmender_path, diag_exporter_path, files, output_dirpath, threads=12, analysis="BasicMultiplePPErrorsAnalysis"):
         #print("Running cmender on all files")
 
@@ -22,9 +21,11 @@ def run_cmender_on_files(cmender_path, diag_exporter_path, files, output_dirpath
 
         command = f"java {VM_OPTIONS} -jar {cmender_path} -dex {diag_exporter_path} -mendfile-cpi -diags-cpi -rps -od -no-disclaimer -o {output_dirpath} -t {threads} -mt 15 -a {analysis} {all_file_paths}"
 
+        print("Command: ", command)
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-        print(result.stdout)
+        ##print(result.stdout)
+
 
 if __name__ == '__main__':    
     if len(sys.argv) != 7:
@@ -60,10 +61,11 @@ if __name__ == '__main__':
 
         project_cmender_output_dirpath = os.path.join(cmender_output_dirpath, dataset_project["name"].replace("/", "_"))
 
-        glob = os.path.join(dataset_projects_dirpath, dataset_project["name"].replace("/", "_") + "_" + dataset_project["branch"]) + "/*.c"
-        
+        #glob = os.path.join(dataset_projects_dirpath, dataset_project["name"].replace("/", "_") + "_" + dataset_project["branch"]) + "/*.c"
+        glob = os.path.join(dataset_projects_dirpath, dataset_project["name"].replace("/", "_") + "_" + dataset_project["branch"])
         print("Glob: ", glob)
         run_cmender_on_files(cmender_path, diag_exporter_path, glob, project_cmender_output_dirpath, threads, analysis)
+
     '''
     for dataset_project in dataset_projects_info:
         project_files = []
