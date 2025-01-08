@@ -9,6 +9,7 @@ import re
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 import statsmodels.api as sm
 
@@ -250,6 +251,75 @@ def pearson_corr_file_progress_accum_total_time_ms_violin_plot(source_results_df
     violin_plot_util(source_results_df, "pearson_corr_file_progress_accum_total_time_ms", "project", title=None, xlabel="PCC(File Progress, Accumulated Total Time (ms))",
                 cut=0, save_path=violin_plots_dir, figname="pearson_corr_file_progress_accum_total_time_ms_violin_plot.pdf")
 
+def file_progress_multiple_related_violin_plots(source_results_df, violins_plots_dir):
+    #fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig = plt.figure(figsize=(10, 8))
+
+    gs = gridspec.GridSpec(2, 2)
+    # First row: two plots
+    ax1 = fig.add_subplot(gs[0, 0])  # Top-left
+    ax2 = fig.add_subplot(gs[0, 1])  # Top-right
+
+    # Second row: one centered plot
+    ax3 = fig.add_subplot(gs[1, 0]) 
+
+    # Plot each violin plot
+    sns.violinplot(data=source_results_df, x="file_progress", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax1)
+    ax1.set_title("File Progress")
+    ax1.set_xlabel("")
+    ax1.set_ylabel("")
+
+    sns.violinplot(data=source_results_df, x="spearman_corr_file_progress_iterations_ratio", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax2)
+    ax2.set_title("SRCC(File Progress, Iterations Ratio)")
+    ax2.set_xlabel("")
+    ax2.set_ylabel("")
+
+    sns.violinplot(data=source_results_df, x="pearson_corr_file_progress_accum_total_time_ms", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax3)
+    ax3.set_title("PCC(File Progress, Accumulated Total Time (ms))")
+    ax3.set_xlabel("")
+    ax3.set_ylabel("")
+
+    # Adjust layout for better appearance
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(violins_plots_dir, "file_progress_related_violin_plots.pdf"))
+    plt.close()
+
+def time_multiple_related_violin_plots(source_results_df, violins_plots_dir):
+   #fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig = plt.figure(figsize=(10, 8))
+
+    gs = gridspec.GridSpec(2, 2)
+    # First row: two plots
+    ax1 = fig.add_subplot(gs[0, 0])  # Top-left
+    ax2 = fig.add_subplot(gs[0, 1])  # Top-right
+
+    # Second row: one centered plot
+    ax3 = fig.add_subplot(gs[1, 0]) 
+
+    # Plot each violin plot
+    sns.violinplot(data=source_results_df, x="total_time_secs", y="project", hue="project", palette="husl", legend=False, orient="h", ax=ax1)
+    ax1.set_title("Total Time (s)")
+    ax1.set_xlabel("")
+    ax1.set_ylabel("")
+
+    sns.violinplot(data=source_results_df, x="total_time_secs_per_iteration", y="project", hue="project", palette="husl", legend=False, orient="h", ax=ax2)
+    ax2.set_title("Total Time per Iteration (s)")
+    ax2.set_xlabel("")
+    ax2.set_ylabel("")
+
+    sns.violinplot(data=source_results_df, x="diag_exporter_total_time_ratio", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax3)
+    ax3.set_title("Diag-exporter Total Time Ratio")
+    ax3.set_xlabel("")
+    ax3.set_ylabel("")
+
+    # Adjust layout for better appearance
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(violins_plots_dir, "time_related_violin_plots.pdf"))
+    plt.close()
+
+
 # Line plots
 
 
@@ -372,6 +442,8 @@ def create_plots(source_results_df, iteration_results_df, eval_output_dir):
     mendfile_size_violin_plot(source_results_df, violins_plots_dir)
     spearman_corr_file_progress_iterations_ratio_violin_plot(source_results_df, violins_plots_dir)
     pearson_corr_file_progress_accum_total_time_ms_violin_plot(source_results_df, violins_plots_dir)
+    file_progress_multiple_related_violin_plots(source_results_df, violins_plots_dir)
+    time_multiple_related_violin_plots(source_results_df, violins_plots_dir)
 
     # Line plots
 
@@ -645,6 +717,7 @@ def get_aggr_source_results(source_results_df, project_name):
         )
 
 def calculate_file_progress(file_path, includes_path, tupatcher_output_dir):
+    return 1.0 # TODO remove this line
     print("Calculating file progress for file: ", file_path)
     filename_no_ext = os.path.splitext(os.path.basename(file_path))[0]
     
