@@ -270,12 +270,12 @@ def file_progress_multiple_related_violin_plots(source_results_df, violins_plots
     ax1.set_ylabel("")
 
     sns.violinplot(data=source_results_df, x="spearman_corr_file_progress_iterations_ratio", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax2)
-    ax2.set_title("SRCC(File Progress, Iterations Ratio)")
+    ax2.set_title("SRCC(Iteration File Progress, Iterations Ratio)")
     ax2.set_xlabel("")
     ax2.set_ylabel("")
 
     sns.violinplot(data=source_results_df, x="pearson_corr_file_progress_accum_total_time_ms", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax3)
-    ax3.set_title("PCC(File Progress, Accumulated Total Time (ms))")
+    ax3.set_title("PCC(Iteration File Progress, Accumulated Time (ms))")
     ax3.set_xlabel("")
     ax3.set_ylabel("")
 
@@ -663,7 +663,7 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
 
     return source_results_df, iteration_results_df
 
-def get_aggr_source_results(source_results_df, project_name):
+def get_aggr_source_results(source_results_df, project_name, unique_unknown_diags_count):
     return (
             project_name, # project
             source_results_df["file_size_kb"].mean(), # file_size_kb_mean
@@ -714,6 +714,8 @@ def get_aggr_source_results(source_results_df, project_name):
             source_results_df["tupatcher_total_time_secs_per_iteration"].var(), # tupatcher_total_time_secs_per_iteration_var,
 
             source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df), # tupatcher_max_iteration_reached_ratio
+
+            unique_unknown_diags_count, # unique_unknown_diags_count
         )
 
 def calculate_file_progress(file_path, includes_path, tupatcher_output_dir):
@@ -806,6 +808,10 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
         "id-Software/DOOM": "DOOM",
     }
 
+    total_unknown_diags_frequency = {}
+
+    total_unknown_diags = set()
+    
     for dataset_project in dataset_projects_info:
         project_cmender_output_dir = os.path.join(cmender_output_dir, dataset_project["name"].replace("/", "_"))
 
@@ -821,7 +827,13 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
 
         all_projects_source_results_df = pd.concat([all_projects_source_results_df, source_results_df], ignore_index=True)
 
-        project_aggr_results.append(get_aggr_source_results(source_results_df, dataset_project["name"]))
+        project_unknown_diags_frequency = cmender_report["unknownDiagsFrequency"]
+
+        total_unknown_diags_frequency = {k: total_unknown_diags_frequency.get(k, 0) + project_unknown_diags_frequency.get(k, 0) for k in set(total_unknown_diags_frequency) | set(project_unknown_diags_frequency)}
+        total_unknown_diags.update(project_unknown_diags_frequency.keys())
+        unique_unknown_diags_count = cmender_report["uniqueUnknownDiagsCount"]
+
+        project_aggr_results.append(get_aggr_source_results(source_results_df, dataset_project["name"], unique_unknown_diags_count))
 
         project_eval_output_dir = os.path.join(eval_output_dir, dataset_project["name"].replace("/", "_"))
 
@@ -880,9 +892,19 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "tupatcher_total_time_secs_per_iteration_var",
 
             "tupatcher_max_iterations_reached_ratio",
+
+            "unique_unknown_diags_count",
         ])
-            
-    project_aggr_results_df.loc[len(project_aggr_results_df)] = get_aggr_source_results(all_projects_source_results_df, "all")
+
+    # sort the unknown diags frequency
+    total_unknown_diags_frequency = dict(sorted(total_unknown_diags_frequency.items(), key=lambda item: item[1], reverse=True))
+
+    for diag, freq in total_unknown_diags_frequency.items():
+        print(f"{diag}: {freq}")
+    
+    print("Total unique unknown diags: ", len(total_unknown_diags))
+
+    project_aggr_results_df.loc[len(project_aggr_results_df)] = get_aggr_source_results(all_projects_source_results_df, "all", len(total_unknown_diags_frequency))
 
     all_eval_output_dir = os.path.join(eval_output_dir, "all")
     all_eval_output_tables_dir = os.path.join(all_eval_output_dir, "tables")
@@ -926,6 +948,9 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
 
     with open(os.path.join(all_eval_output_tables_dir, "latex", "concise_project_aggr_results.tex"), "w") as text_file:
         text_file.write(latex_table)
+
+    with open(os.path.join(all_eval_output_tables_dir, "latex", "total_unknown_diags_frequency.tex"), "w") as text_file:
+        text_file.write(pd.DataFrame(total_unknown_diags_frequency.items(), columns=["Diag", "Frequency"]).to_latex(index=False))
 
 if __name__ == '__main__':
     if len(sys.argv) != 6:
