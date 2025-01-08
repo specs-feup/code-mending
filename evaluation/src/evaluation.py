@@ -131,12 +131,12 @@ def multi_scatter_plot_util(df, x_column, y_column, hue_column,
         plt.show()
 
 def violin_plot_util(df, x_column, y_column,
-                        s=5.0, color="skyblue", edgecolors="blue", linewidths=0.8, adjust_left=None,
+                        s=5.0, color="skyblue", edgecolors="blue", linewidths=0.8, adjust_left=None, cut=2,
                         title=None, xlabel=None, ylabel=None,
                         save_path=None, figname=None):
     plt.figure(figsize=(8, 6))
 
-    sns.violinplot(data=df, x=x_column, y=y_column, hue=y_column, palette="husl", legend=False, orient="h")
+    sns.violinplot(data=df, x=x_column, y=y_column, hue=y_column, palette="husl", legend=False, orient="h", cut=cut)
 
     if title:
         plt.title(title)
@@ -216,7 +216,7 @@ def iteration_count_violin_plot(source_results_df, violin_plots_dir):
 
 def file_progress_violin_plot(source_results_df, violin_plots_dir):
     violin_plot_util(source_results_df, "file_progress", "project", title=None, xlabel="File Progress",
-                save_path=violin_plots_dir, figname="file_progress_violin_plot.pdf")
+                     cut=0, save_path=violin_plots_dir, figname="file_progress_violin_plot.pdf")
 
 def total_time_violin_plot(source_results_df, violin_plots_dir):
     violin_plot_util(source_results_df, "total_time_secs", "project", title=None, xlabel="Total Time (s)",
@@ -224,7 +224,7 @@ def total_time_violin_plot(source_results_df, violin_plots_dir):
 
 def diag_exporter_total_time_ratio_violin_plot(source_results_df, violin_plots_dir):
     violin_plot_util(source_results_df, "diag_exporter_total_time_ratio", "project", title=None, xlabel="Diag-exporter Total Time Ratio",
-                save_path=violin_plots_dir, figname="diag_exporter_total_time_ratio_violin_plot.pdf")
+                cut=0, save_path=violin_plots_dir, figname="diag_exporter_total_time_ratio_violin_plot.pdf")
 
 def total_time_without_diag_exporter_violin_plot(source_results_df, violin_plots_dir):
     violin_plot_util(source_results_df, "total_time_secs_without_diag_exporter", "project", title=None, xlabel="Total Time without Diag-exporter Time (s)",
@@ -244,11 +244,11 @@ def mendfile_size_violin_plot(source_results_df, violin_plots_dir):
 
 def spearman_corr_file_progress_iterations_ratio_violin_plot(source_results_df, violin_plots_dir):
     violin_plot_util(source_results_df, "spearman_corr_file_progress_iterations_ratio", "project", title=None, xlabel="SRCC(File Progress, Iterations Ratio)",
-                save_path=violin_plots_dir, figname="spearman_corr_file_progress_iterations_ratio_violin_plot.pdf")
+                cut=0, save_path=violin_plots_dir, figname="spearman_corr_file_progress_iterations_ratio_violin_plot.pdf")
     
 def pearson_corr_file_progress_accum_total_time_ms_violin_plot(source_results_df, violin_plots_dir):
     violin_plot_util(source_results_df, "pearson_corr_file_progress_accum_total_time_ms", "project", title=None, xlabel="PCC(File Progress, Accumulated Total Time (ms))",
-                save_path=violin_plots_dir, figname="pearson_corr_file_progress_accum_total_time_ms_violin_plot.pdf")
+                cut=0, save_path=violin_plots_dir, figname="pearson_corr_file_progress_accum_total_time_ms_violin_plot.pdf")
 
 # Line plots
 
@@ -823,6 +823,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
 
     concise_project_aggr_results_df = project_aggr_results_df[
         [
+            "project",
             "success_ratio", "tupatcher_success_ratio",
             "unsuccessful_ratio", "tupatcher_unsuccessful_ratio",
             "iterations_mean", "tupatcher_iterations_mean",
@@ -845,6 +846,14 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
     cmender_upgrade_df.to_csv(os.path.join(all_eval_output_tables_dir, "cmender_upgrade.csv"), index=False)
     cmender_downgrade_df.to_csv(os.path.join(all_eval_output_tables_dir, "cmender_downgrade.csv"), index=False)
     tupatcher_max_iterations_df.to_csv(os.path.join(all_eval_output_tables_dir, "tupatcher_max_iterations.csv"), index=False)
+
+    # save tables in latex
+    latex_table = concise_project_aggr_results_df.to_latex(index=False)
+
+    os.makedirs(os.path.join(all_eval_output_tables_dir, "latex"), exist_ok=True)
+
+    with open(os.path.join(all_eval_output_tables_dir, "latex", "concise_project_aggr_results.tex"), "w") as text_file:
+        text_file.write(latex_table)
 
 if __name__ == '__main__':
     if len(sys.argv) != 6:
