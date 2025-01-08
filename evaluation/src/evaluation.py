@@ -717,7 +717,6 @@ def get_aggr_source_results(source_results_df, project_name):
         )
 
 def calculate_file_progress(file_path, includes_path, tupatcher_output_dir):
-    return 1.0 # TODO remove this line
     print("Calculating file progress for file: ", file_path)
     filename_no_ext = os.path.splitext(os.path.basename(file_path))[0]
     
