@@ -152,9 +152,10 @@ public interface MendingHandler {
     }*/
 
     default void adjustConversionTypesHeuristic(Diagnostic diag, MendingTable mendingTable) {
-        // TODO conversions of return types are not being handled (return type is source of truth)
+        // TODO conversions of return types not being handled (return type is source of truth) - check if this is true
         System.out.println("[adjustConversionTypesHeuristic]");
-        // FIXME non generated typedef names are not being taken into account
+        // FIXME non generated typedef names are not being taken into account - since they are controlled we might need to change them
+        //       maybe these typedefs should also have a starting type
         if (!DiagnosticArgsMatcher.match(diag.description().args(), List.of(
                 QualTypeArg.class,
                 QualTypeArg.class,
@@ -849,6 +850,11 @@ public interface MendingHandler {
         }
 
         var identifier = diag.sourceRanges().getFirst().encompassingCode();
+
+        if (identifier.contains(".") || identifier.contains("*") || identifier.contains("->")
+                || identifier.contains("[") || identifier.contains("(")) {
+            throw new RuntimeException("Subscript not integer is not a simple identifier. Not yet implemented");
+        }
 
         // TODO this works for when the array is in local scope (or similar). maybe we might need to put this const or even use a macro for compile time size
          // Macro might be the best option because
