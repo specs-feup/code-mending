@@ -679,6 +679,8 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             source_results_df["fatal_exception"].sum() / len(source_results_df), # fatal_exception_ratio
             0 if (len(source_results_df) - source_results_df["success"].sum()) == 0 else source_results_df["fatal_exception"].sum() / (len(source_results_df) - source_results_df["success"].sum()), # fatal_exception_over_unsuccessful_ratio
 
+            (source_results_df["success"].sum() / len(source_results_df)) * 100, # success_percentage
+
             source_results_df["iterations"].mean(), # iterations_mean
             source_results_df["iterations"].var(), # iterations_var
 
@@ -700,6 +702,8 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             # TU-Patcher
             source_results_df["tupatcher_success"].sum() / len(source_results_df), # tupatcher_success_ratio
             1 - source_results_df["tupatcher_success"].sum() / len(source_results_df), # tupatcher_unsuccessful_ratio
+
+            (source_results_df["tupatcher_success"].sum() / len(source_results_df)) * 100, # tupatcher_success_percentage
 
             source_results_df["tupatcher_iterations"].mean(), # tupatcher_iterations_mean
             source_results_df["tupatcher_iterations"].var(), # tupatcher_iterations_var
@@ -857,6 +861,8 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "fatal_exception_ratio",
             "fatal_exception_over_unsuccessful_ratio",
 
+            "success_percentage",
+
             "iterations_mean",
             "iterations_var",
 
@@ -878,6 +884,8 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             # TU-Patcher
             "tupatcher_success_ratio",
             "tupatcher_unsuccessful_ratio",
+
+            "tupatcher_success_percentage",
 
             "tupatcher_iterations_mean",
             "tupatcher_iterations_var",
@@ -918,15 +926,16 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
     concise_project_aggr_results_df = project_aggr_results_df[
         [
             "project",
-            "success_ratio", "tupatcher_success_ratio",
-            "unsuccessful_ratio", "tupatcher_unsuccessful_ratio",
+            "success_percentage", "tupatcher_success_percentage",
+            #"unsuccessful_ratio", "tupatcher_unsuccessful_ratio",
             "iterations_mean", "tupatcher_iterations_mean",
-            "iterations_var", "tupatcher_iterations_var",
+            #"iterations_var", "tupatcher_iterations_var",
             "total_time_secs_mean", "tupatcher_total_time_secs_mean",
-            "total_time_secs_var", "tupatcher_total_time_secs_var",
+            #"total_time_secs_var", "tupatcher_total_time_secs_var",
             "total_time_secs_per_iteration_mean", "tupatcher_total_time_secs_per_iteration_mean",
-            "total_time_secs_per_iteration_var", "tupatcher_total_time_secs_per_iteration_var",
-            "tupatcher_max_iterations_reached_ratio"
+            #"total_time_secs_per_iteration_var", "tupatcher_total_time_secs_per_iteration_var",
+            "tupatcher_max_iterations_reached_ratio",
+            "unique_unknown_diags_count",
         ]]
 
     concise_project_aggr_results_df.to_csv(os.path.join(all_eval_output_tables_dir, "concise_project_aggr_results.csv"), index=False)
