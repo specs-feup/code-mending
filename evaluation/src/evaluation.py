@@ -666,64 +666,64 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
 def get_aggr_source_results(source_results_df, project_name, unique_unknown_diags_count):
     return (
             project_name, # project
-            source_results_df["file_size_kb"].mean(), # file_size_kb_mean
-            source_results_df["file_size_kb"].var(), # file_size_kb_var
+            round(source_results_df["file_size_kb"].mean(), 2), # file_size_kb_mean
+            round(source_results_df["file_size_kb"].var(), 2), # file_size_kb_var
             
             len(source_results_df), # total_count
             source_results_df["success"].sum(), # success_count
             len(source_results_df) - source_results_df["success"].sum(), # unsuccessful_count
             source_results_df["fatal_exception"].sum(), # fatal_exception_count
 
-            source_results_df["success"].sum() / len(source_results_df), # success_ratio
-            (len(source_results_df) - source_results_df["success"].sum()) / len(source_results_df), # unsuccessful_ratio
-            source_results_df["fatal_exception"].sum() / len(source_results_df), # fatal_exception_ratio
-            0 if (len(source_results_df) - source_results_df["success"].sum()) == 0 else source_results_df["fatal_exception"].sum() / (len(source_results_df) - source_results_df["success"].sum()), # fatal_exception_over_unsuccessful_ratio
+            round(source_results_df["success"].sum() / len(source_results_df), 2), # success_ratio
+            round((len(source_results_df) - source_results_df["success"].sum()) / len(source_results_df), 2), # unsuccessful_ratio
+            round(source_results_df["fatal_exception"].sum() / len(source_results_df), 2), # fatal_exception_ratio
+            round(0 if (len(source_results_df) - source_results_df["success"].sum()) == 0 else source_results_df["fatal_exception"].sum() / (len(source_results_df) - source_results_df["success"].sum()), 2), # fatal_exception_over_unsuccessful_ratio
 
-            (source_results_df["success"].sum() / len(source_results_df)) * 100, # success_percentage
+            round((source_results_df["success"].sum() / len(source_results_df)) * 100), # success_percentage
 
-            source_results_df["iterations"].mean(), # iterations_mean
-            source_results_df["iterations"].var(), # iterations_var
+            round(source_results_df["iterations"].mean(), 2), # iterations_mean
+            round(source_results_df["iterations"].var(), 2), # iterations_var
 
-            source_results_df["file_progress"].mean(), # file_progress_mean
-            source_results_df["file_progress"].var(), # file_progress_var
+            round(source_results_df["file_progress"].mean(), 2), # file_progress_mean
+            round(source_results_df["file_progress"].var(), 2), # file_progress_var
 
-            source_results_df["file_progress_percentage"].mean(), # file_progress_percentage_mean
+            round(source_results_df["file_progress_percentage"].mean(), 2), # file_progress_percentage_mean
 
-            source_results_df["total_time_secs"].mean(), # total_time_secs_mean
-            source_results_df["total_time_secs"].var(), # total_time_secs_var
+            round(source_results_df["total_time_secs"].mean(), 2), # total_time_secs_mean
+            round(source_results_df["total_time_secs"].var(), 2), # total_time_secs_var
 
-            source_results_df["diag_exporter_total_time_ratio"].mean(), # diag_exporter_total_time_ratio_mean
-            source_results_df["diag_exporter_total_time_ratio"].var(), # diag_exporter_total_time_ratio_var
+            round(source_results_df["diag_exporter_total_time_ratio"].mean(), 2), # diag_exporter_total_time_ratio_mean
+            round(source_results_df["diag_exporter_total_time_ratio"].var(), 2), # diag_exporter_total_time_ratio_var
 
-            source_results_df["total_time_secs_per_iteration"].mean(), # total_time_secs_per_iteration_mean
-            source_results_df["total_time_secs_per_iteration"].var(), # total_time_secs_per_iteration_var
+            round(source_results_df["total_time_secs_per_iteration"].mean(), 2), # total_time_secs_per_iteration_mean
+            round(source_results_df["total_time_secs_per_iteration"].var(), 2), # total_time_secs_per_iteration_var
 
-            source_results_df["mendfile_size_kb"].mean(), # mendfile_size_kb_mean
-            source_results_df["mendfile_size_kb"].var(), # mendfile_size_kb_var
+            round(source_results_df["mendfile_size_kb"].mean(), 2), # mendfile_size_kb_mean
+            round(source_results_df["mendfile_size_kb"].var(), 2), # mendfile_size_kb_var
 
             # TU-Patcher
-            source_results_df["tupatcher_success"].sum() / len(source_results_df), # tupatcher_success_ratio
-            1 - source_results_df["tupatcher_success"].sum() / len(source_results_df), # tupatcher_unsuccessful_ratio
+            round(source_results_df["tupatcher_success"].sum() / len(source_results_df), 2), # tupatcher_success_ratio
+            round(1 - source_results_df["tupatcher_success"].sum() / len(source_results_df), 2), # tupatcher_unsuccessful_ratio
 
-            (source_results_df["tupatcher_success"].sum() / len(source_results_df)) * 100, # tupatcher_success_percentage
+            round((source_results_df["tupatcher_success"].sum() / len(source_results_df)) * 100, 2), # tupatcher_success_percentage
 
-            source_results_df["tupatcher_iterations"].mean(), # tupatcher_iterations_mean
-            source_results_df["tupatcher_iterations"].var(), # tupatcher_iterations_var
+            round(source_results_df["tupatcher_iterations"].mean(), 2), # tupatcher_iterations_mean
+            round(source_results_df["tupatcher_iterations"].var(), 2), # tupatcher_iterations_var
 
-            source_results_df["tupatcher_file_progress"].mean(), # tupatcher_file_progress_mean
-            source_results_df["tupatcher_file_progress"].var(), # tupatcher_file_progress_var
+            round(source_results_df["tupatcher_file_progress"].mean(), 2), # tupatcher_file_progress_mean
+            round(source_results_df["tupatcher_file_progress"].var(), 2), # tupatcher_file_progress_var
 
-            source_results_df["tupatcher_file_progress_percentage"].mean(), # tupatcher_file_progress_percentage_mean
+            round(source_results_df["tupatcher_file_progress_percentage"].mean(), 2), # tupatcher_file_progress_percentage_mean
 
-            source_results_df["tupatcher_total_time_secs"].mean(), # tupatcher_total_time_secs_mean
-            source_results_df["tupatcher_total_time_secs"].var(), # tupatcher_total_time_secs_var
+            round(source_results_df["tupatcher_total_time_secs"].mean(), 2), # tupatcher_total_time_secs_mean
+            round(source_results_df["tupatcher_total_time_secs"].var(), 2), # tupatcher_total_time_secs_var
 
-            source_results_df["tupatcher_total_time_secs_per_iteration"].mean(), # tupatcher_total_time_secs_per_iteration_mean
-            source_results_df["tupatcher_total_time_secs_per_iteration"].var(), # tupatcher_total_time_secs_per_iteration_var,
+            round(source_results_df["tupatcher_total_time_secs_per_iteration"].mean(), 2), # tupatcher_total_time_secs_per_iteration_mean
+            round(source_results_df["tupatcher_total_time_secs_per_iteration"].var(), 2), # tupatcher_total_time_secs_per_iteration_var,
 
-            source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df), # tupatcher_max_iteration_reached_ratio
+            round(source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df), 2), # tupatcher_max_iteration_reached_ratio
 
-            (source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df)) * 100, # tupatcher_max_iteration_reached_percentage
+            round((source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df)) * 100, 2), # tupatcher_max_iteration_reached_percentage
 
             unique_unknown_diags_count, # unique_unknown_diags_count
         )
@@ -938,6 +938,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
     concise_project_aggr_results_df = project_aggr_results_df[
         [
             "project",
+            "total_count",
             "success_percentage", "tupatcher_success_percentage",
             #"unsuccessful_ratio", "tupatcher_unsuccessful_ratio",
             "iterations_mean", "tupatcher_iterations_mean",
