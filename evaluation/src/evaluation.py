@@ -679,7 +679,7 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             round(source_results_df["fatal_exception"].sum() / len(source_results_df), 2), # fatal_exception_ratio
             round(0 if (len(source_results_df) - source_results_df["success"].sum()) == 0 else source_results_df["fatal_exception"].sum() / (len(source_results_df) - source_results_df["success"].sum()), 2), # fatal_exception_over_unsuccessful_ratio
 
-            round((source_results_df["success"].sum() / len(source_results_df)) * 100), # success_percentage
+            round((source_results_df["success"].sum() / len(source_results_df)) * 100, 2), # success_percentage
 
             round(source_results_df["iterations"].mean(), 2), # iterations_mean
             round(source_results_df["iterations"].var(), 2), # iterations_var
