@@ -687,6 +687,8 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             source_results_df["file_progress"].mean(), # file_progress_mean
             source_results_df["file_progress"].var(), # file_progress_var
 
+            source_results_df["file_progress_percentage"].mean(), # file_progress_percentage_mean
+
             source_results_df["total_time_secs"].mean(), # total_time_secs_mean
             source_results_df["total_time_secs"].var(), # total_time_secs_var
 
@@ -711,6 +713,8 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             source_results_df["tupatcher_file_progress"].mean(), # tupatcher_file_progress_mean
             source_results_df["tupatcher_file_progress"].var(), # tupatcher_file_progress_var
 
+            source_results_df["tupatcher_file_progress_percentage"].mean(), # tupatcher_file_progress_percentage_mean
+
             source_results_df["tupatcher_total_time_secs"].mean(), # tupatcher_total_time_secs_mean
             source_results_df["tupatcher_total_time_secs"].var(), # tupatcher_total_time_secs_var
 
@@ -718,6 +722,8 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             source_results_df["tupatcher_total_time_secs_per_iteration"].var(), # tupatcher_total_time_secs_per_iteration_var,
 
             source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df), # tupatcher_max_iteration_reached_ratio
+
+            (source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df)) * 100, # tupatcher_max_iteration_reached_percentage
 
             unique_unknown_diags_count, # unique_unknown_diags_count
         )
@@ -790,6 +796,7 @@ def prepare_tupatcher_sources_df(tupatcher_output_dir, includes_path):
 
     # apply calculate_file_progress for each file
     tupatcher_df["tupatcher_file_progress"] = tupatcher_df.apply(lambda row: calculate_file_progress(row["file_path"], includes_path, tupatcher_output_dir), axis=1)
+    tupatcher_df["tupatcher_file_progress_percentage"] = tupatcher_df["tupatcher_file_progress"] * 100
 
     tupatcher_df["tupatcher_max_iterations_reached"] = tupatcher_df.apply(lambda row: (row["tupatcher_iterations"] == 100) & (row["tupatcher_success"] == False), axis=1)
 
@@ -869,6 +876,8 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "file_progress_mean",
             "file_progress_var",
 
+            "file_progress_percentage_mean",
+
             "total_time_secs_mean",
             "total_time_secs_var",
 
@@ -893,6 +902,8 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "tupatcher_file_progress_mean",
             "tupatcher_file_progress_var",
 
+            "tupatcher_file_progress_percentage_mean",
+
             "tupatcher_total_time_secs_mean",
             "tupatcher_total_time_secs_var",
 
@@ -900,6 +911,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "tupatcher_total_time_secs_per_iteration_var",
 
             "tupatcher_max_iterations_reached_ratio",
+            "tupatcher_max_iterations_reached_percentage",
 
             "unique_unknown_diags_count",
         ])
@@ -930,11 +942,12 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             #"unsuccessful_ratio", "tupatcher_unsuccessful_ratio",
             "iterations_mean", "tupatcher_iterations_mean",
             #"iterations_var", "tupatcher_iterations_var",
+            "file_progress_percentage_mean", "tupatcher_file_progress_percentage_mean",
             "total_time_secs_mean", "tupatcher_total_time_secs_mean",
             #"total_time_secs_var", "tupatcher_total_time_secs_var",
             "total_time_secs_per_iteration_mean", "tupatcher_total_time_secs_per_iteration_mean",
             #"total_time_secs_per_iteration_var", "tupatcher_total_time_secs_per_iteration_var",
-            "tupatcher_max_iterations_reached_ratio",
+            "tupatcher_max_iterations_reached_percentage",
             "unique_unknown_diags_count",
         ]]
 
