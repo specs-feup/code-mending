@@ -172,8 +172,8 @@ public class MendingEngine {
             executorService.shutdown();
 
             try {
-                if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
-                    executorService.shutdownNow(); // Force shutdown if not finished in 10 minutes
+                if (!executorService.awaitTermination(60, TimeUnit.MINUTES)) {
+                    executorService.shutdownNow(); // Force shutdown if not finished in 60 minutes
                 }
             } catch (InterruptedException e) {
                 executorService.shutdownNow();
