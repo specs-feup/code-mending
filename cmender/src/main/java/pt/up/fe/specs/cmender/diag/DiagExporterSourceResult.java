@@ -60,4 +60,16 @@ public record DiagExporterSourceResult(
 
         return diags;
     }
+
+    public Diagnostic getFirstErrorOrFatalInSource(String sourceFile) {
+        return diags.stream()
+                .filter(diag -> {
+                    System.out.println(diag);
+                    return diag.isErrorOrFatal() &&
+                            (diag.location().isFileLoc() ? diag.location().presumedLoc().file().equals(sourceFile) :
+                            diag.location().expansionLoc().file().equals(sourceFile));
+                })
+                .findFirst()
+                .orElse(null);
+    }
 }

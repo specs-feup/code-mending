@@ -52,6 +52,8 @@ public class MendingTable {
 
     private final Set<String> ppFiles;
 
+    private double fileProgress;
+
     public MendingTable() {
         variables = new HashMap<>();
         functions = new HashMap<>();
@@ -63,6 +65,7 @@ public class MendingTable {
         handledDiagnostics = new ArrayList<>();
         unknownDiags = new ArrayList<>();
         ppFiles = new HashSet<>();
+        fileProgress = 0.0;
     }
 
     public void setFileSize(long fileSize) {
@@ -71,6 +74,10 @@ public class MendingTable {
 
     public void addUnknownDiag(DiagnosticShortInfo diag) {
         unknownDiags.add(diag);
+    }
+
+    public void setFileProgress(double fileProgress) {
+        this.fileProgress = fileProgress;
     }
 
     public void put(VariableSymbol variable) {

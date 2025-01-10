@@ -396,7 +396,7 @@ public class MendingEngine {
 
                 // TODO for now we don't have a need to to process notes, but they might be useful in the future
 
-                var termination = diagnosticAnalysis.checkTermination(diagExporterSourceResult, mendingTable);
+                var termination = diagnosticAnalysis.checkTermination(diagExporterSourceResult, mendingTable, mendingDirData.sourceFileCopyPath());
                 List<Integer> selectedDiagIdxs = new ArrayList<>();
                 DiagnosticMendResult mendResult = null;
 

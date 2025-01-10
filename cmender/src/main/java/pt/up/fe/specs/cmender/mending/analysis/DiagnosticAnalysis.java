@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface DiagnosticAnalysis {
 
-    default MendingTerminationStatus checkTermination(DiagExporterSourceResult sourceResult, MendingTable mendingTable) {
+    default MendingTerminationStatus checkTermination(DiagExporterSourceResult sourceResult, MendingTable mendingTable, String sourceFile) {
         if (!sourceResult.hasErrorsOrFatals()) {
             return MendingTerminationStatus.builder()
                     .terminationType(MendingTerminationStatus.TerminationType.NO_MORE_ERRORS_OR_FATALS)
@@ -25,7 +25,14 @@ public interface DiagnosticAnalysis {
 
         var firstError = sourceResult.diags().get(firstErrorIdx);
 
-        var fileProgress = (double) firstError.location().fileOffset() / (double) sourceResult.size();
+        //var fileProgress = (double) firstError.location().fileOffset() / (double) sourceResult.size();
+
+        // To avoid errors in mendfile or other errors. otherwise we might get file progresses of >1.0 or other erroneous values
+        var firstErrorInSource = sourceResult.getFirstErrorOrFatalInSource(sourceFile);
+
+        var fileProgress = firstErrorInSource == null? mendingTable.fileProgress() : (double) firstErrorInSource.location().fileOffset() / (double) sourceResult.size();
+
+        mendingTable.setFileProgress(fileProgress);
 
         if (mendingTable.handledDiagnostics().contains(firstError)) {
             return MendingTerminationStatus.builder()
