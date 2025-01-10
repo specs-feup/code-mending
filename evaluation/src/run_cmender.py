@@ -19,7 +19,7 @@ def run_cmender_on_files(cmender_path, diag_exporter_path, files, output_dirpath
         all_file_paths = files
 
 
-        command = f"java {VM_OPTIONS} -jar {cmender_path} -dex {diag_exporter_path} -mendfile-cpi -diags-cpi -rps -od -no-disclaimer -o {output_dirpath} -t {threads} -mt 15 -a {analysis} {all_file_paths}"
+        command = f"java {VM_OPTIONS} -jar {cmender_path} -dex {diag_exporter_path} -mendfile-cpi -diags-cpi -rps -od -no-disclaimer -o {output_dirpath} -t {threads} -mt 10 -a {analysis} {all_file_paths}"
 
         print("Command: ", command)
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
