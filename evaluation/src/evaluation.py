@@ -584,6 +584,8 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
             source_report["success"], # success
             source_report["fatalException"] is not None, # fatal_exception
 
+            source_report["timeout"], # timeout
+
             source_report["iterationCount"], # iterations
 
             source_report["completionStatusEstimate"], # file_progress
@@ -629,6 +631,8 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
 
         "success",
         "fatal_exception",
+
+        "timeout",
 
         "iterations",
 
@@ -680,6 +684,9 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             round(0 if (len(source_results_df) - source_results_df["success"].sum()) == 0 else source_results_df["fatal_exception"].sum() / (len(source_results_df) - source_results_df["success"].sum()), 2), # fatal_exception_over_unsuccessful_ratio
 
             round((source_results_df["success"].sum() / len(source_results_df)) * 100, 2), # success_percentage
+
+            round(source_results_df["timeout"].sum() / len(source_results_df), 2), # timeout_ratio
+            round((source_results_df["timeout"].sum() / len(source_results_df)) *100, 2), # timeout_percentage
 
             round(source_results_df["iterations"].mean(), 2), # iterations_mean
             round(source_results_df["iterations"].var(), 2), # iterations_var
@@ -870,6 +877,9 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
 
             "success_percentage",
 
+            "timeout_ratio",
+            "timeout_percentage",
+
             "iterations_mean",
             "iterations_var",
 
@@ -948,8 +958,9 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             #"total_time_secs_var", "tupatcher_total_time_secs_var",
             "total_time_secs_per_iteration_mean", "tupatcher_total_time_secs_per_iteration_mean",
             #"total_time_secs_per_iteration_var", "tupatcher_total_time_secs_per_iteration_var",
-            "tupatcher_max_iterations_reached_percentage",
+            "timeout_percentage", "tupatcher_max_iterations_reached_percentage",
             "unique_unknown_diags_count",
+            "diag_exporter_total_time_ratio_mean"
         ]]
 
     concise_project_aggr_results_df.to_csv(os.path.join(all_eval_output_tables_dir, "concise_project_aggr_results.csv"), index=False)
