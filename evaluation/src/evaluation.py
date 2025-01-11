@@ -595,6 +595,7 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
             source_report["totalTime"]["seconds"], # total_time_secs
 
             source_report["diagExporterTotalTime"]["ratio"], # diag_exporter_total_time_ratio
+            source_report["diagExporterTotalTime"]["percent"], # diag_exporter_total_time_percent
 
             source_report["totalTime"]["millis"] - source_report["totalTime"]["millis"] * source_report["diagExporterTotalTime"]["ratio"], # total_time_ms_without_diag_exporter
             source_report["totalTime"]["seconds"] - source_report["totalTime"]["seconds"] * source_report["diagExporterTotalTime"]["ratio"], # total_time_secs_without_diag_exporter
@@ -643,6 +644,7 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
         "total_time_secs",
 
         "diag_exporter_total_time_ratio",
+        "diag_exporter_total_time_percentage",
 
         "total_time_ms_without_diag_exporter",
         "total_time_secs_without_diag_exporter",
@@ -701,6 +703,8 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
 
             round(source_results_df["diag_exporter_total_time_ratio"].mean(), 3), # diag_exporter_total_time_ratio_mean
             round(source_results_df["diag_exporter_total_time_ratio"].var(), 3), # diag_exporter_total_time_ratio_var
+
+            round(source_results_df["diag_exporter_total_time_percentage"].mean(), 3), # diag_exporter_total_time_percentage_mean
 
             round(source_results_df["total_time_secs_per_iteration"].mean(), 3), # total_time_secs_per_iteration_mean
             round(source_results_df["total_time_secs_per_iteration"].var(), 3), # total_time_secs_per_iteration_var
@@ -894,6 +898,8 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "diag_exporter_total_time_ratio_mean",
             "diag_exporter_total_time_ratio_var",
 
+            "diag_exporter_total_time_percentage_mean",
+
             "total_time_secs_per_iteration_mean",
             "total_time_secs_per_iteration_var",
 
@@ -960,7 +966,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             #"total_time_secs_per_iteration_var", "tupatcher_total_time_secs_per_iteration_var",
             "timeout_percentage", "tupatcher_max_iterations_reached_percentage",
             "unique_unknown_diags_count",
-            "diag_exporter_total_time_ratio_mean"
+            "diag_exporter_total_time_percentage_mean",
         ]]
 
     concise_project_aggr_results_df.to_csv(os.path.join(all_eval_output_tables_dir, "concise_project_aggr_results.csv"), index=False)
