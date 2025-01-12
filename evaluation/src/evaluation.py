@@ -253,7 +253,8 @@ def pearson_corr_file_progress_accum_total_time_ms_violin_plot(source_results_df
 
 def file_progress_multiple_related_violin_plots(source_results_df, violins_plots_dir):
     #fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    fig = plt.figure(figsize=(10, 8))
+    #fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 4))
 
     #gs = gridspec.GridSpec(2, 2)
     gs = gridspec.GridSpec(1, 2)
@@ -978,6 +979,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "unique_unknown_diags_count",
             "diag_exporter_total_time_percentage_mean",
             "encountered_unknown_diags_percentage",
+            "mendfile_size_kb_mean",
         ]]
 
     concise_project_aggr_results_df.to_csv(os.path.join(all_eval_output_tables_dir, "concise_project_aggr_results.csv"), index=False)
