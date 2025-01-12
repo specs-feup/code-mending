@@ -255,13 +255,15 @@ def file_progress_multiple_related_violin_plots(source_results_df, violins_plots
     #fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     fig = plt.figure(figsize=(10, 8))
 
-    gs = gridspec.GridSpec(2, 2)
+    #gs = gridspec.GridSpec(2, 2)
+    gs = gridspec.GridSpec(1, 2)
+
     # First row: two plots
     ax1 = fig.add_subplot(gs[0, 0])  # Top-left
     ax2 = fig.add_subplot(gs[0, 1])  # Top-right
 
     # Second row: one centered plot
-    ax3 = fig.add_subplot(gs[1, 0]) 
+    #ax3 = fig.add_subplot(gs[1, 0]) 
 
     # Plot each violin plot
     sns.violinplot(data=source_results_df, x="file_progress", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax1)
@@ -274,10 +276,10 @@ def file_progress_multiple_related_violin_plots(source_results_df, violins_plots
     ax2.set_xlabel("")
     ax2.set_ylabel("")
 
-    sns.violinplot(data=source_results_df, x="pearson_corr_file_progress_accum_total_time_ms", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax3)
-    ax3.set_title("PCC(Iteration File Progress, Accumulated Time (ms))")
-    ax3.set_xlabel("")
-    ax3.set_ylabel("")
+    #sns.violinplot(data=source_results_df, x="pearson_corr_file_progress_accum_total_time_ms", y="project", hue="project", palette="husl", legend=False, orient="h", cut=0, ax=ax3)
+    #ax3.set_title("PCC(Iteration File Progress, Accumulated Time (ms))")
+    #ax3.set_xlabel("")
+    #ax3.set_ylabel("")
 
     # Adjust layout for better appearance
     plt.tight_layout()
@@ -586,6 +588,8 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
 
             source_report["timeout"], # timeout
 
+            len(source_report["unknownDiags"]) > 0, # encountered_unknown_diags
+
             source_report["iterationCount"], # iterations
 
             source_report["completionStatusEstimate"], # file_progress
@@ -634,6 +638,8 @@ def analyze_project_results(cmender_report, cmender_output_dir, project_name):
         "fatal_exception",
 
         "timeout",
+
+        "encountered_unknown_diags",
 
         "iterations",
 
@@ -737,6 +743,7 @@ def get_aggr_source_results(source_results_df, project_name, unique_unknown_diag
             round((source_results_df["tupatcher_max_iterations_reached"].sum() / len(source_results_df)) * 100, 3), # tupatcher_max_iteration_reached_percentage
 
             unique_unknown_diags_count, # unique_unknown_diags_count
+            round((source_results_df["encountered_unknown_diags"].sum() / len(source_results_df))*100, 3), # encountered_unknown_diags_percentage
         )
 
 def calculate_file_progress(file_path, includes_path, tupatcher_output_dir):
@@ -834,7 +841,9 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
 
     total_unknown_diags = set()
     
-    for dataset_project in dataset_projects_info:
+    ordered_dataset_projects_info = sorted(dataset_projects_info, key=lambda x: x["selected_files"])
+
+    for dataset_project in ordered_dataset_projects_info:
         project_cmender_output_dir = os.path.join(cmender_output_dir, dataset_project["name"].replace("/", "_"))
 
         cmender_report = read_cmender_report(project_cmender_output_dir)
@@ -930,6 +939,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "tupatcher_max_iterations_reached_percentage",
 
             "unique_unknown_diags_count",
+            "encountered_unknown_diags_percentage",
         ])
 
     # sort the unknown diags frequency
@@ -967,6 +977,7 @@ def evaluate(cmender_output_dir, tupatcher_output_dir, eval_output_dir, dataset_
             "timeout_percentage", "tupatcher_max_iterations_reached_percentage",
             "unique_unknown_diags_count",
             "diag_exporter_total_time_percentage_mean",
+            "encountered_unknown_diags_percentage",
         ]]
 
     concise_project_aggr_results_df.to_csv(os.path.join(all_eval_output_tables_dir, "concise_project_aggr_results.csv"), index=False)
